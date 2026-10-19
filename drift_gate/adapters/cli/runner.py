@@ -277,8 +277,7 @@ def _check_body(args, controller) -> None:
             files, ignores = _collect_inputs(args)
             if args.loaded_policy and not (args.pr and args.repo):
                 from drift_gate.adapters.docs.content import attach_env_documents, local_document_reader
-                from drift_gate.adapters.git.client import reference_grep
-                files = attach_env_documents(files, args.loaded_policy, local_document_reader(root), reference_grep(root))
+                files = attach_env_documents(files, args.loaded_policy, local_document_reader(root))
             return files, ignores
 
         changed_files, drift_ignores = bounded('captured', collect)

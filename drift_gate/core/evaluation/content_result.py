@@ -8,9 +8,6 @@ class ContentCheck:
     verification: str  # verified | partial | unverified | not-applicable
     reason: str
     mode: str
-    # Warn-level findings that never change the decision (e.g. a removed key still
-    # documented that may be used outside supported code).
-    advisories: tuple = ()
 
 
 def unknown(reason, mode):
@@ -50,5 +47,4 @@ def combine(checks, *, require_all, mode):
     else:
         verification = "verified"
     reason = "; ".join(sorted({c.reason for c in relevant if c.reason}))
-    advisories = tuple(sorted({item for c in checks for item in c.advisories}))
-    return ContentCheck(decision, verification, reason, mode, advisories)
+    return ContentCheck(decision, verification, reason, mode)

@@ -149,8 +149,7 @@ class GitHubAdapter:
                     file = replace(file, before_source=before, after_source=after)
                 snapshots.append(file)
             files = snapshots
-        return attach_env_documents(files, policy, lambda path: self.get_file_text(path, head),
-                                    unavailable_reason='PR API mode does not search the repository tree')
+        return attach_env_documents(files, policy, lambda path: self.get_file_text(path, head))
 
     # ── Internal ──────────────────────────────────────────────────────────
 

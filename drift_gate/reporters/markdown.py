@@ -105,11 +105,6 @@ class MarkdownReporter:
                 for violation in violations:
                     lines += self._violation_section(violation)
 
-        if result.advisories:
-            lines += ["", "### Warnings / 경고", "",
-                      "These do not block the PR. Check each one; the guidance shows how to stop a check.", ""]
-            lines.extend(f"- `{item['rule_id']}` ({item['group']}): {item['message']}" for item in result.advisories)
-
         lines += self._summary_section(result)
         if explain:
             lines += self._explain_section(result)
@@ -210,7 +205,6 @@ class MarkdownReporter:
             f"- Skipped rules: {len(result.skipped_rules)}",
             f"- Rejected ignores: {len(result.rejected_ignores)}",
             f"- Temporal warnings: {len(result.temporal_warnings)}",
-            f"- Advisories (non-blocking warnings): {len(result.advisories)}",
         ]
 
         if result.skipped_rules:
