@@ -47,6 +47,8 @@ def drift_gate_check_local(
     # Local runs cannot manufacture GitHub approval evidence.
     from drift_gate.adapters.docs.content import attach_env_documents, local_document_reader
     changed_files = attach_env_documents(changed_files, policy, local_document_reader(git.repo_root or Path.cwd()))
+    from drift_gate.adapters.removed_key_usage import attach_local_usage
+    changed_files = attach_local_usage(changed_files, policy, git.repo_root or Path.cwd())
     result = run(changed_files=changed_files, policy=policy, execution=execution,
         policy_source=source, policy_path=policy_path,
         provenance={"source": "local-git", **getattr(git, "provenance", {})},contract_proofs=contract_proofs)
@@ -112,6 +114,8 @@ def drift_gate_get_evidence(
     changed_files = git.get_changed_files(base)
     from drift_gate.adapters.docs.content import attach_env_documents, local_document_reader
     changed_files = attach_env_documents(changed_files, policy, local_document_reader(git.repo_root or Path.cwd()))
+    from drift_gate.adapters.removed_key_usage import attach_local_usage
+    changed_files = attach_local_usage(changed_files, policy, git.repo_root or Path.cwd())
     result = run(changed_files=changed_files, policy=policy, execution=execution,
         policy_source=source, policy_path=policy_path,
         provenance={"source": "local-git", **getattr(git, "provenance", {})})
@@ -276,6 +280,7 @@ def _compact_result(result, changed_files, *, token_budget: int) -> dict:
             "evaluated_rules": result.scan_metrics.evaluated_rules,
         },
         "violations": violations,
+        "advisories": [a.to_dict() for a in result.advisories],
         "verification_limits": _verification_limits(result),
         "skipped_rules": [s.to_dict() for s in result.skipped_rules],
         "rejected_ignores": [r.to_dict() for r in result.rejected_ignores],
@@ -311,6 +316,8 @@ def _compact_violation(violation) -> dict:
                 "name": group.name,
                 "type": group.type,
                 "required": group.required,
+                "evidence": group.evidence,
+                **({"removed_env_keys": group.removed_env_keys} if group.removed_env_keys else {}),
             }
             for group in violation.unsatisfied_groups
         ],

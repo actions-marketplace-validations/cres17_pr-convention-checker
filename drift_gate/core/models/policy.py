@@ -225,6 +225,8 @@ class Policy:
     load_warnings: List[str] = field(default_factory=list)
     services: List[ServiceSpec] = field(default_factory=list)
     budget: Optional[Budget] = None
+    check_removed_keys: bool = True
+    exclude_removed_keys: List[str] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, d: dict) -> "Policy":
@@ -236,6 +238,8 @@ class Policy:
             enrichment=EnrichmentPolicy.from_dict(d.get("enrichment") or {}),
             services=[ServiceSpec.from_dict(item) for item in d.get("services", [])],
             budget=Budget.from_dict(d["budget"]) if d.get("budget") is not None else None,
+            check_removed_keys=d.get("check_removed_keys", True),
+            exclude_removed_keys=d.get("exclude_removed_keys", []),
         )
 
 
@@ -246,6 +250,10 @@ def policy_identity_dict(policy):
     does not use the newer options unchanged.
     """
     data = asdict(policy)
+    if data["check_removed_keys"] is True:
+        data.pop("check_removed_keys")
+    if not data["exclude_removed_keys"]:
+        data.pop("exclude_removed_keys")
     if not data.get("services"):
         data.pop("services", None)
     if data.get("budget") is None:

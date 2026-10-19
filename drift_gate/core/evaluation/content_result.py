@@ -8,6 +8,8 @@ class ContentCheck:
     verification: str  # verified | partial | unverified | not-applicable
     reason: str
     mode: str
+    advisories: tuple = ()
+    removed_keys: tuple[str, ...] = ()
 
 
 def unknown(reason, mode):

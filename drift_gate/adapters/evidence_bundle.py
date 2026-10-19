@@ -129,6 +129,7 @@ def _validate_result(data, snapshot):
     lists = ('change_types', 'violations', 'rule_decisions', 'skipped_rules', 'rejected_ignores',
              'ignore_audit', 'temporal_warnings')
     if (any(not isinstance(data.get(key), list) for key in lists)
+            or not isinstance(data.get('advisories', []), list)
             or any(not isinstance(data.get(key), dict) for key in ('summary', 'scan_metrics', 'gate'))
             or any(type(data.get(key)) is not bool for key in ('skip', 'no_policy'))
             or data.get('verification') not in {'verified', 'unverified', 'partial', 'not-applicable'}):

@@ -1123,3 +1123,13 @@ class TestMarkdownReporterEdgeCases:
         md = MarkdownReporter().render(result)
         assert "적용된 ignore" in md
         assert "workflow-ops-doc" in md
+
+
+def test_removed_key_options_validate_direct_policy_callers():
+    from drift_gate.core.models.policy import Policy
+    from drift_gate.core.policy.validator import validate
+    defaults = Policy()
+    assert defaults.check_removed_keys is True and defaults.exclude_removed_keys == []
+    assert not validate(Policy(check_removed_keys='false')).ok
+    assert not validate(Policy(exclude_removed_keys=['*'])).ok
+    assert validate(Policy(exclude_removed_keys=['LEGACY_TOKEN'])).ok

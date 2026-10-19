@@ -56,6 +56,12 @@ class MarkdownReporter:
             lines += [f"**Execution:** `{result.execution.get('run_id', '')}`",
                       ""]
 
+        if result.advisories:
+            lines += ["### 확인이 필요한 환경 변수", ""]
+            for item in result.advisories:
+                message = html.escape(item.message).replace("|", "\\|")
+                lines += [f"- `{item.rule_id}` / `{item.key}`: {message}"]
+            lines.append("")
         if result.no_policy:
             lines += self._no_policy_section()
             return "\n".join(lines)
@@ -205,6 +211,7 @@ class MarkdownReporter:
             f"- Skipped rules: {len(result.skipped_rules)}",
             f"- Rejected ignores: {len(result.rejected_ignores)}",
             f"- Temporal warnings: {len(result.temporal_warnings)}",
+            f"- Advisories: {len(result.advisories)}",
         ]
 
         if result.skipped_rules:

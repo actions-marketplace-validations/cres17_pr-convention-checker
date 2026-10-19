@@ -8,6 +8,9 @@ from drift_gate.core.evaluation.static_routers import UnsupportedContract
 class AnalysisSession:
     def __init__(self, limit=128):
         self.limit = limit
+        self.policy = None
+        self.rule_id = ""
+        self.advisories = []
         self._entries = OrderedDict()
         self._contract_plans = OrderedDict()
         self._contract_proofs = OrderedDict()

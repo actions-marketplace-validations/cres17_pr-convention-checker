@@ -4,6 +4,10 @@ from drift_gate.core.classification.intensity import INTENSITY_ORDER
 
 def weakening_reasons(trusted, candidate):
     errors = []
+    if trusted.check_removed_keys and not candidate.check_removed_keys:
+        errors.append("disabled removed environment key check")
+    if set(candidate.exclude_removed_keys) - set(trusted.exclude_removed_keys):
+        errors.append("added removed environment key exceptions")
     levels = {'nit': 0, 'minor': 1, 'major': 2, 'blocker': 3}
     by_id = {r.id: r for r in candidate.rules}
     for old in trusted.rules:

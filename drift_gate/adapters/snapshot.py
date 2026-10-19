@@ -211,7 +211,8 @@ def capture_inspection(*, changed_files, policy, context, drift_ignores=None,
     mode = 'captured-working-tree' if provenance.get('source') == 'local-git' else 'captured-adapter-input'
     payload = canonical_bytes({
         'schema': 'inspection-snapshot-v1', 'collection_mode': mode,
-        'files': [asdict(file) for file in changed_files], 'policy': policy_data,
+        'files': [{k: v for k, v in asdict(file).items() if k not in {'env_key_usage', 'removed_env_key_candidates'} or v is not None}
+                  for file in changed_files], 'policy': policy_data,
         'drift_ignores': [_directive(d) for d in drift_ignores or []],
         'context': context.to_dict(), 'policy_source': policy_source,
         'policy_path': str(Path(policy_path).resolve()) if policy_path is not None else None,

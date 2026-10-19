@@ -31,6 +31,7 @@ export type DesktopEvent = ProgressEvent | (Requested & (
   | { type: "scanned"; scan: Scan }
   | { type: "policyMissing"; repository: string }
   | ({ type: "policyPreview" } & PolicyPreview)
+  | { type: "removedKeyPolicySaved"; path: string; repository: string; action: string; key: string }
   | { type: "policyCreated"; path: string; repository?: string; preset?: string }
   | ({ type: "scanImpact" } & ScanImpact)
   | { type: "preview"; prompt: string }

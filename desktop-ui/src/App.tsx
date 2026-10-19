@@ -25,6 +25,7 @@ import { isProgressEvent, type QueuedProgressEvent } from "./events";
 import ProjectProgress from "./features/project-progress/ProjectProgress";
 import ViolationGuide from "./features/review/ViolationGuide";
 import ScanImpact from "./features/review/ScanImpact";
+import RemovedKeys from "./features/review/RemovedKeys";
 import AnalysisNotice from "./features/review/AnalysisNotice";
 import PolicySetup from "./features/review/PolicySetup";
 import { findViolation, problemSummary, problemTitle } from "./features/review/violations";
@@ -151,6 +152,12 @@ export default function App({
           break;
         case "policyPreview":
           setPolicyPreview(event);
+          break;
+        case "removedKeyPolicySaved":
+          setNotice(`삭제 키 설정을 저장했습니다 · ${event.path}`);
+          setScan(null);
+          setReview(null);
+          setRescan((n) => n + 1);
           break;
         case "policyCreated":
           setPolicyRepo("");
@@ -511,6 +518,8 @@ export default function App({
                     </div>
                   )}
                   <AnalysisNotice scan={current} />
+                  <RemovedKeys scan={current} onChange={!historyScan && desktopBridge && !busy
+                    ? (action, key) => desktopBridge.setRemovedKeyPolicy(action, key) : undefined} />
                   <div className="summary-row">
                     <section
                       className={`verdict-card ${current.result.result}`}

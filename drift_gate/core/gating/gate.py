@@ -35,5 +35,8 @@ def decide_gate(result: EvaluationResult) -> str:
         elif decision == "pass":
             decision = "warn"
 
+    if decision == "pass" and result.advisories:
+        decision = "warn"
+
     result.result = decision
     return decision

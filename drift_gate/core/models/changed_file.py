@@ -25,6 +25,9 @@ class ChangedFile:
     before_routes: Optional[List[tuple[str, str]]] = field(default=None, repr=False)
     after_routes: Optional[List[tuple[str, str]]] = field(default=None, repr=False)
     route_analysis_error: str = ""
+    # Captured key names, classifications and paths only; no environment values.
+    env_key_usage: Optional[dict] = field(default=None, repr=False)
+    removed_env_key_candidates: Optional[List[str]] = None
 
     def to_dict(self) -> dict:
         return {
@@ -38,6 +41,8 @@ class ChangedFile:
             "analysis_reason": self.analysis_reason,
             "documented_env_keys": self.documented_env_keys,
             "document_input_state": self.document_input_state,
+            **({"removed_env_key_candidates": self.removed_env_key_candidates} if self.removed_env_key_candidates is not None else {}),
+            **({"env_key_usage": self.env_key_usage} if self.env_key_usage is not None else {}),
             **({"document_error": self.document_error} if self.document_error else {}),
             **({"route_analysis_error": self.route_analysis_error} if self.route_analysis_error else {}),
         }
@@ -52,5 +57,7 @@ class ChangedFile:
             semantic_signals=d.get("semantic_signals", []),
             semantic_evidence=d.get("semantic_evidence", []),
             documented_env_keys=d.get("documented_env_keys"),
+            env_key_usage=d.get("env_key_usage"),
+            removed_env_key_candidates=d.get("removed_env_key_candidates"),
             document_input_state=d.get("document_input_state", ""),
         )

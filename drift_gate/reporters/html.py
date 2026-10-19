@@ -205,6 +205,7 @@ class HtmlReporter:
 
   {walkthrough}
   {diagnostics}
+  {self._advisories(result)}
   {self._temporal_warnings(result)}
   {rule_table}
 
@@ -321,6 +322,13 @@ class HtmlReporter:
   <h3>Rejected Ignores</h3>
   <ul>{rejected}</ul>
 </section>"""
+
+    def _advisories(self, result):
+        if not result.advisories:
+            return ""
+        items = "".join(f"<li><code>{html.escape(a.rule_id)} / {html.escape(a.key)}</code>: "
+                        f"{html.escape(a.message)}</li>" for a in result.advisories)
+        return f'<section class="card notice"><h2>확인이 필요한 환경 변수</h2><ul>{items}</ul></section>'
 
     def _temporal_warnings(self, result: EvaluationResult) -> str:
         if not result.temporal_warnings:

@@ -66,3 +66,44 @@ def test_every_preset_loads_and_scans(tmp_path, preset):
     create_policy(repo, preset)
     subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
     assert scan_repository(repo).result.result in {"pass", "warn", "fail"}
+
+
+@pytest.mark.parametrize('action', ['exclude', 'disable'])
+def test_removed_key_settings_preserve_policy_and_reject_stale_scan(tmp_path, action):
+    from drift_gate.desktop.policy_setup import update_removed_key_policy
+    repo = repo_with(tmp_path, {'README.md': 'x\n'})
+    source = '# existing comment\n' + POLICY_PRESETS['focused-python']
+    (repo / '.drift-gate.yml').write_text(source, encoding='utf-8')
+    update_removed_key_policy(repo, action, 'LEGACY_TOKEN', source)
+    updated = (repo / '.drift-gate.yml').read_text()
+    loaded = load_policy(repo / '.drift-gate.yml')
+    assert updated.startswith('# existing comment\n')
+    assert loaded.exclude_removed_keys == ['LEGACY_TOKEN'] if action == 'exclude' else not loaded.check_removed_keys
+    with pytest.raises(ValueError, match='바뀌었'):
+        update_removed_key_policy(repo, action, 'OTHER', source)
+    assert (repo / '.drift-gate.yml').read_text() == updated
+
+
+@pytest.mark.parametrize('value', ['[FIRST] # keep this comment\n', '\n  - FIRST\n'])
+def test_removed_key_settings_extend_existing_lists_without_changing_other_options(tmp_path, value):
+    from drift_gate.desktop.policy_setup import update_removed_key_policy
+    repo = repo_with(tmp_path, {'README.md': 'x\n'})
+    source = 'exclude_removed_keys: ' + value + POLICY_PRESETS['focused-python']
+    (repo / '.drift-gate.yml').write_text(source)
+    update_removed_key_policy(repo, 'exclude', 'SECOND', source)
+    loaded = load_policy(repo / '.drift-gate.yml')
+    assert loaded.exclude_removed_keys == ['FIRST', 'SECOND'] and loaded.rules
+
+
+def test_removed_key_settings_reject_symlinks_and_invalid_actions(tmp_path):
+    from drift_gate.desktop.policy_setup import update_removed_key_policy
+    repo = repo_with(tmp_path, {'README.md': 'x\n'})
+    outside = tmp_path / 'external.yml'
+    outside.write_text(POLICY_PRESETS['focused-python'])
+    (repo / '.drift-gate.yml').symlink_to(outside)
+    with pytest.raises(ValueError, match='symlink'):
+        update_removed_key_policy(repo, 'disable', 'TOKEN', outside.read_text())
+    (repo / '.drift-gate.yml').unlink()
+    (repo / '.drift-gate.yml').write_text(outside.read_text())
+    with pytest.raises(ValueError):
+        update_removed_key_policy(repo, 'invalid', 'TOKEN', outside.read_text())

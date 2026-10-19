@@ -413,6 +413,7 @@ def find_reporter_field_gaps(
         "rule_decisions": {"rule summary", "rule pass/fail"},
         "scan_metrics": {"scanned files", "runtime", "evaluated rules"},
         "skipped_rules": {"skipped rules", "applied ignores"},
+        "advisories": {"advisories", "확인이 필요한 환경 변수"},
         "temporal_warnings": {"temporal warnings", "temporal gate warnings"},
         "violations": {"violations", "contract drift"},
     }

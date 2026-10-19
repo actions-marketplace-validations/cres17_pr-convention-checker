@@ -39,6 +39,14 @@ def validate(policy: Policy) -> ValidationResult:
     """
     result = ValidationResult()
     seen_ids: set = set()
+    import re
+    if type(policy.check_removed_keys) is not bool:
+        result.errors.append("check_removed_keys must be boolean")
+    if not isinstance(policy.exclude_removed_keys, list) or any(
+        not isinstance(key, str) or not re.fullmatch(r"[A-Z][A-Z0-9_]*", key)
+        for key in policy.exclude_removed_keys
+    ):
+        result.errors.append("exclude_removed_keys must contain literal environment key names")
 
     if policy.gate.proof_gate not in {"off", "v1"}:
         result.errors.append(f"gate.proof_gate must be off or v1, not '{policy.gate.proof_gate}'")

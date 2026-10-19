@@ -99,34 +99,8 @@ def content_requirement(group, triggers, changed_files, session=None):
             return unknown(str(exc), 'api-routes')
         return route_document_requirement(group, changed_files, added, removed, session)
     if group.content == "env-keys":
-        facts = environment_delta(triggers)
-        required = facts.keys
-        if not required:
-            if not facts.uncertain and all((f.status == 'added' or f.before_source is not None)
-                                          and (f.status == 'deleted' or f.after_source is not None) for f in triggers):
-                return ContentCheck('satisfied', 'not-applicable', 'Complete source establishes no new environment key', 'env-keys')
-            return unknown("No static new environment keys could be established from this change", "env-keys")
-        # all_changed requires each named document to contain all keys;
-        # any_changed permits any one complete document, not fragments combined.
-        reason = "Required environment keys: " + ", ".join(sorted(required))
-        def check_document(file):
-            if file.document_input_state == 'missing':
-                return checked(False, f'{file.path} is missing; required keys: ' + ', '.join(sorted(required)), 'env-keys')
-            if file.documented_env_keys is None:
-                return unknown(f'{file.path}: document input unavailable', 'env-keys')
-            missing = required - set(file.documented_env_keys)
-            detail = (f'{file.path}: missing environment keys: ' + ', '.join(sorted(missing)) if missing
-                      else f'{file.path}: all required environment keys are documented')
-            return checked(not missing, detail, 'env-keys')
-        results = []
-        for pattern in patterns:
-            checks = [check_document(f) for f in docs if matches_any(f.path, [pattern])]
-            results.append(combine(checks, require_all=False, mode="env-keys"))
-        result = combine(results, require_all=bool(group.all_changed), mode="env-keys")
-        if facts.uncertain:
-            result = combine([result, unknown('Environment access scope/key is unresolved', 'env-keys')],
-                             require_all=True, mode='env-keys')
-        return ContentCheck(result.decision, result.verification, reason + "; " + result.reason, "env-keys")
+        from drift_gate.core.evaluation.removed_environment import environment_requirement
+        return environment_requirement(group, triggers, changed_files, session)
     added, removed = route_delta(triggers)
     auto_api = any(p.startswith(("docs/api/", "docs/spec.", "openapi")) for p in patterns)
     if group.content == "auto" and (not auto_api or not (added or removed)):
@@ -171,3 +145,36 @@ def covered_patterns(docs, added, removed):
     plus = set().union(*(_routes(patch_lines(f.patch, "+"), docs=True) for f in docs))
     minus = set().union(*(_routes(patch_lines(f.patch, "-"), docs=True) for f in docs))
     return added <= plus and removed <= (minus - plus)
+
+
+def added_environment_requirement(group, triggers, changed_files):
+    patterns = group.any_changed or group.all_changed
+    docs = [f for f in changed_files if f.status != "deleted" and matches_any(f.path, patterns)]
+    facts = environment_delta(triggers)
+    required = facts.keys
+    if not required:
+        if not facts.uncertain and all((f.status == 'added' or f.before_source is not None)
+                                      and (f.status == 'deleted' or f.after_source is not None) for f in triggers):
+            return ContentCheck('satisfied', 'not-applicable', 'Complete source establishes no new environment key', 'env-keys')
+        return unknown("No static new environment keys could be established from this change", "env-keys")
+    # all_changed requires each named document to contain all keys;
+    # any_changed permits any one complete document, not fragments combined.
+    reason = "Required environment keys: " + ", ".join(sorted(required))
+    def check_document(file):
+        if file.document_input_state == 'missing':
+            return checked(False, f'{file.path} is missing; required keys: ' + ', '.join(sorted(required)), 'env-keys')
+        if file.documented_env_keys is None:
+            return unknown(f'{file.path}: document input unavailable', 'env-keys')
+        missing = required - set(file.documented_env_keys)
+        detail = (f'{file.path}: missing environment keys: ' + ', '.join(sorted(missing)) if missing
+                  else f'{file.path}: all required environment keys are documented')
+        return checked(not missing, detail, 'env-keys')
+    results = []
+    for pattern in patterns:
+        checks = [check_document(f) for f in docs if matches_any(f.path, [pattern])]
+        results.append(combine(checks, require_all=False, mode="env-keys"))
+    result = combine(results, require_all=bool(group.all_changed), mode="env-keys")
+    if facts.uncertain:
+        result = combine([result, unknown('Environment access scope/key is unresolved', 'env-keys')],
+                         require_all=True, mode='env-keys')
+    return ContentCheck(result.decision, result.verification, reason + "; " + result.reason, "env-keys")

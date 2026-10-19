@@ -838,3 +838,45 @@ def test_committed_save_keeps_good_report_and_original_bad_history(tmp_path, mon
     assert of_type(messages, 'progressHistory')['warning']
     assert load_baseline(repo, directory)['version'] == 2
     assert target.read_bytes() == original
+
+
+@pytest.mark.parametrize('accepted', [False, True])
+def test_removed_key_policy_button_requires_native_confirmation(tmp_path, monkeypatch, accepted):
+    from drift_gate.tests.test_removed_environment import repository
+    from drift_gate.desktop.service import scan_repository
+    from PySide6.QtWidgets import QMessageBox
+    QApplication.instance() or QApplication([])
+    root = repository(tmp_path)
+    bridge = DesktopBridge()
+    bridge.scan = scan_repository(root)
+    before = (root / '.drift-gate.yml').read_text()
+    prompts = []
+    def confirm(*args):
+        prompts.append(args)
+        return QMessageBox.StandardButton.Yes if accepted else QMessageBox.StandardButton.No
+    monkeypatch.setattr('drift_gate.desktop.web_app.QMessageBox.question', confirm)
+    events = []
+    bridge.event.connect(lambda raw: events.append(json.loads(raw)))
+    bridge.setRemovedKeyPolicy('exclude', 'LEGACY_TOKEN')
+    assert len(prompts) == 1
+    assert prompts[0][-1] == QMessageBox.StandardButton.No
+    after = (root / '.drift-gate.yml').read_text()
+    if accepted:
+        assert 'exclude_removed_keys: [LEGACY_TOKEN]' in after
+        assert events[-1]['type'] == 'removedKeyPolicySaved' and bridge.scan is None
+        assert scan_repository(root).result.result == 'pass'
+    else:
+        assert before == after and not events
+
+
+def test_removed_key_policy_button_cannot_change_an_unreported_key(tmp_path, monkeypatch):
+    from drift_gate.tests.test_removed_environment import repository
+    from drift_gate.desktop.service import scan_repository
+    QApplication.instance() or QApplication([])
+    root = repository(tmp_path)
+    bridge = DesktopBridge()
+    bridge.scan = scan_repository(root)
+    before = (root / '.drift-gate.yml').read_text()
+    monkeypatch.setattr('drift_gate.desktop.web_app.QMessageBox.question', lambda *args: pytest.fail('unexpected confirmation'))
+    bridge.setRemovedKeyPolicy('disable', 'NOT_REPORTED')
+    assert (root / '.drift-gate.yml').read_text() == before

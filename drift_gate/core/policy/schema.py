@@ -60,6 +60,7 @@ def validate_schema(data):
             fail(path + '.id', 'must be a nonempty string')
 
     mapping(data, {'rules': array(rule), 'ignore_paths': strings,
+        'check_removed_keys': boolean, 'exclude_removed_keys': strings,
         'gate': lambda v, p: mapping(v, {'fail_on_blocker': boolean, 'fail_on_major_count': positive,
             'on_unverified': string, 'proof_gate': string}, p),
         'services': array(service), 'budget': budget,

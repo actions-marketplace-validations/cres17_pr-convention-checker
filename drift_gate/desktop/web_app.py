@@ -16,7 +16,7 @@ from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBo
 
 from drift_gate.desktop.app import ScanWorker
 from drift_gate.desktop.resources import WEB_ROOT
-from drift_gate.desktop.policy_setup import create_policy, preview_policy
+from drift_gate.desktop.policy_setup import create_policy, preview_policy, update_removed_key_policy
 from drift_gate.desktop.service import resolve_document
 from drift_gate.desktop.review_dialog import ReviewWorker, review_html
 from drift_gate.desktop.subscription_review import build_review_prompt, find_cli
@@ -479,6 +479,33 @@ class DesktopBridge(QObject):
     @Slot(str, str)
     def createPolicy(self, path, preset):
         self._run_progress(path, lambda: [('policyCreated', create_policy(path, preset))], 'error')
+
+    @Slot(str, str)
+    def setRemovedKeyPolicy(self, action, key):
+        if not self.scan or self.scan_thread or self.review_worker:
+            self.emit('error', message='현재 검사가 끝난 뒤 다시 실행해 주세요.')
+            return
+        result = self.scan.result
+        candidates = {a.key for a in result.advisories}
+        candidates.update(k for d in result.rule_decisions for g in d.unsatisfied_groups for k in g.removed_env_keys)
+        if action not in {'exclude', 'disable'} or key not in candidates:
+            self.emit('error', message='현재 탐지 결과에 없는 삭제 키입니다. 다시 검사해 주세요.')
+            return
+        change = f'{key} 키를 앞으로 탐지하지 않도록 설정' if action == 'exclude' else '모든 삭제 키 검사 끄기'
+        answer = QMessageBox.question(self.parent(), '삭제 키 검사 설정 확인',
+            f'{change}합니다.\n.drift-gate.yml에 저장되며 정책 약화로 기록됩니다. '
+            '신뢰 검사는 사람 검토를 요구할 수 있습니다.\n계속하시겠습니까?',
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No)
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            data = update_removed_key_policy(self.scan.repository, action, key, self.scan.policy_source)
+            self.scan = None
+            self.review = None
+            self.emit('removedKeyPolicySaved', **data)
+        except (OSError, ValueError) as exc:
+            self.emit('error', message=str(exc))
 
     @Slot()
     def _scan_cleanup(self):

@@ -27,7 +27,7 @@ def enforcement_outcome(result):
         action, basis = 'allow', 'evaluation-skipped:' + (result.skip_reason or 'skip')
     elif result.result == 'fail':
         action, basis = 'block', 'gate-failed'
-    elif confirmed or unresolved or partial:
+    elif confirmed or unresolved or partial or result.result == 'warn' or result.advisories:
         action, basis = 'review', 'gate-passed-with-open-items'
     else:
         action, basis = 'allow', 'no-violation-and-nothing-unresolved'

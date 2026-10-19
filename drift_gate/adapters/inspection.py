@@ -15,7 +15,7 @@ from drift_gate.core.models.evaluation_context import EvaluationContext
 from drift_gate.adapters.snapshot import capture_inspection, InspectionSnapshot
 
 
-INPUT_DIGEST_VERSION = 3  # bump when the execution input digest changes shape
+INPUT_DIGEST_VERSION = 4  # bump when the execution input digest changes shape
 
 def execution_metadata(execution, policy_path, source, policy, files, provenance, context):
     # Internal snapshots affect semantic decisions, but their contents must not

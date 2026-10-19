@@ -85,9 +85,25 @@ def trusted_check(*, root, base, head, policy, trusted_policy_ref, trusted_polic
             trusted_error = (trusted_report.get('error') or {}).get('message') or f"exit {envelope['exit_code']}"
     except ValueError:
         trusted_report, trusted_error = None, f"no JSON result (exit {envelope['exit_code']})"
-    snapshot = collect_git_snapshot(root=root, base=base, head=head, trusted_policy_ref=trusted_policy_ref,
-                                    trusted_policy_sha256=trusted_policy_sha256, policy_path=policy,
-                                    comparison_mode=comparison_mode)
+    from drift_gate.adapters.git.immutable import PolicyWeakeningError
+    try:
+        snapshot = collect_git_snapshot(root=root, base=base, head=head, trusted_policy_ref=trusted_policy_ref,
+                                        trusted_policy_sha256=trusted_policy_sha256, policy_path=policy,
+                                        comparison_mode=comparison_mode)
+    except PolicyWeakeningError as exc:
+        from drift_gate.core.trust.validation import TrustDecision
+        decision = TrustDecision('review', 'none', ('candidate-policy-weakened', *exc.reasons), (exc.policy_path,))
+        return {'schema': 'trusted-validation-v1', 'subject': exc.subject.to_dict(),
+                'trusted': {'engine_commit': manifest['commit'],
+                            'manifest_sha256': sha256(engines.manifest_bytes(manifest)).hexdigest(),
+                            'gate_result': trusted_result, 'error': trusted_error, 'attestation': attestation,
+                            'input_sha256': None},
+                'candidate': {'engine': 'current-process', 'gate_result': None, 'error': str(exc),
+                              'role': 'shadow-not-merge-basis', 'input_sha256': None},
+                'subject_binding': {'resolved_refs': {'base': base, 'head': head, 'trusted_policy': trusted_policy_ref},
+                                    'mismatches': [], 'input_digest_compared': False},
+                'decision': decision.to_dict(),
+                'boundary': 'separate-interpreter-no-credentials; shares host filesystem and network'}
     candidate_error, candidate_result = '', None
     try:
         candidate = inspect_snapshot(snapshot, execution=execution)

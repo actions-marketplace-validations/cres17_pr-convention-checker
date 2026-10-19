@@ -99,6 +99,8 @@ def scan_repository(path: str | Path, base: str = "HEAD", *, contract_proofs: bo
     changed_files = attach_env_documents(
         changed_files, policy, local_document_reader(repository)
     )
+    from drift_gate.adapters.removed_key_usage import attach_local_usage
+    changed_files = attach_local_usage(changed_files, policy, repository)
     result = run(changed_files=changed_files, policy=policy, policy_source=policy_source,
                  policy_path=policy_path, provenance={"source": "local-git", **git.provenance},contract_proofs=contract_proofs)
     result.scan_metrics.runtime_seconds = time.perf_counter() - started

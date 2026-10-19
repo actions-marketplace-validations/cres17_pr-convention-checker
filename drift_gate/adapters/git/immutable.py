@@ -178,6 +178,16 @@ def collect_git_snapshot(*, root, base, head, trusted_policy_ref, trusted_policy
                                      contract_proofs=contract_proofs, budget=budget)
 
 
+class PolicyWeakeningError(GitInputError):
+    """A valid candidate policy needs human review against its trusted policy."""
+
+    def __init__(self, reasons, subject, policy_path):
+        self.reasons = tuple(reasons)
+        self.subject = subject
+        self.policy_path = policy_path
+        super().__init__('Candidate weakened pinned policy: ' + '; '.join(reasons))
+
+
 def _collect_git_snapshot(*, root, base, head, trusted_policy_ref, trusted_policy_sha256, policy_path,
                           comparison_mode, context, contract_proofs, budget):
     relative_path(policy_path)
@@ -202,7 +212,9 @@ def _collect_git_snapshot(*, root, base, head, trusted_policy_ref, trusted_polic
     require_check_policy(trusted); require_check_policy(candidate)
     reasons = weakening_reasons(trusted, candidate)
     if reasons:
-        raise GitInputError('Candidate weakened pinned policy: ' + '; '.join(reasons))
+        raise PolicyWeakeningError(reasons,
+            GitSubject(base_oid, head_oid, reader.tree_ids[base_oid], reader.tree_ids[head_oid], comparison_mode),
+            policy_path)
     if trusted.budget is not None:
         from drift_gate.core.budget import InspectionBudget
         budget.limits.update(InspectionBudget.from_policy(trusted.budget).limits)
@@ -229,6 +241,8 @@ def _collect_git_snapshot(*, root, base, head, trusted_policy_ref, trusted_polic
             files.append(ChangedFile(file.path, file.status, previous_path=file.previous_path,
                 patch=patch, before_source=before_text, after_source=after_text))
     files = attach_env_documents(files, trusted, lambda path: reader.text(head_oid, path))
+    from drift_gate.adapters.removed_key_usage import attach_immutable_usage
+    files = attach_immutable_usage(files, trusted, reader, head_oid)
     # Document-only unchanged observations need a before record for replay binding.
     for file in files:
         if file.before_source is not None:

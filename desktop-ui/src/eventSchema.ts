@@ -56,7 +56,7 @@ const testLink = z.object({ patterns: strings, matched: nonnegative, passed: non
     skipped: nonnegative, failing: strings, no_match: z.boolean(), code_newer: z.boolean().optional() });
 const issue = z.object({ path: text, line: nonnegative, target: text, kind: z.enum(["link", "path", "document"]),
     confidence: z.enum(["high", "low"]).optional(), message: text });
-const group = z.object({ name: text, required: strings.optional(), evidence: text.optional(),
+const group = z.object({ removed_env_keys: strings.optional(), name: text, required: strings.optional(), evidence: text.optional(),
     decision: text.optional(), verification: text.optional(), content_mode: text.optional() }).passthrough();
 const decision = z.object({ rule_id: text, status: text, reason: text, severity: text.optional(), trigger_files: strings,
     decision: text.optional(), verification: text.optional(),
@@ -65,7 +65,7 @@ const violation = z.object({ rule_id: text, severity: text, confidence: text, me
     missing_docs_explanation: text, changed_contract_summary: text, docs_update_draft: text, false_positive_note: text }).passthrough();
 const scan = z.object({ repository: text, base: text, at: text, changed_file_count: nonnegative, policy: text,
     files: z.array(z.object({ path: text, patch: text, status: text })),
-    result: z.object({ result: text, rule_decisions: z.array(decision), violations: z.array(violation).optional(),
+    result: z.object({ result: text, advisories: z.array(z.object({ rule_id: text, key: text, kind: text, message: text, paths: strings })).optional(), rule_decisions: z.array(decision), violations: z.array(violation).optional(),
         scan_metrics: z.object({ analysis_notes: z.array(z.object({ path: text, method: text, reason: text.optional() }).passthrough()).optional() }).passthrough().optional(),
     }).passthrough() });
 const schema = z.discriminatedUnion("type", [
@@ -99,6 +99,7 @@ const schema = z.discriminatedUnion("type", [
     z.object({ type: z.literal("policyMissing"), ...meta, repository: text }),
     z.object({ type: z.literal("policyPreview"), ...meta, repository: text, exists: z.boolean(), preset: text, presets: strings,
         recommendations: z.object({ presets: strings, frameworks: strings, docs_paths: strings }), policy: text }),
+    z.object({ type: z.literal("removedKeyPolicySaved"), path: text, repository: text, action: text, key: text }),
     z.object({ type: z.literal("policyCreated"), ...meta, path: text, repository: text.optional(), preset: text.optional() }),
     z.object({ type: z.literal("scanImpact"), ...meta, scan_at: text, version: nonnegative,
         items: z.array(z.object({ id: text, title: text, path: text, line: nonnegative.optional(), change: text, invalidated: z.boolean() })),

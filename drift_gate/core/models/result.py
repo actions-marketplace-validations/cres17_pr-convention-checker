@@ -205,10 +205,12 @@ class UnsatisfiedGroup:
     content_mode: str = "paths"
     source_files: List[str] = field(default_factory=list)
     relation: str = ""
+    removed_env_keys: List[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {"name": self.name, "required": self.required, "type": self.type, "evidence": self.evidence,
                 "decision": self.decision, "verification": self.verification, "content_mode": self.content_mode,
+                **({"removed_env_keys": self.removed_env_keys} if self.removed_env_keys else {}),
                 **({"source_files": self.source_files, "relation": self.relation} if self.relation else {})}
 
 
@@ -223,10 +225,12 @@ class SatisfiedGroup:
     content_mode: str = "paths"
     source_files: List[str] = field(default_factory=list)
     relation: str = ""
+    removed_env_keys: List[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {"name": self.name, "required": self.required, "type": self.type, "evidence": self.evidence,
                 "decision": self.decision, "verification": self.verification, "content_mode": self.content_mode,
+                **({"removed_env_keys": self.removed_env_keys} if self.removed_env_keys else {}),
                 **({"source_files": self.source_files, "relation": self.relation} if self.relation else {})}
 
 
@@ -425,6 +429,19 @@ class IgnoreAuditEntry:
         }
 
 
+@dataclass(frozen=True)
+class Advisory:
+    rule_id: str
+    key: str
+    kind: str
+    message: str
+    paths: tuple[str, ...] = ()
+
+    def to_dict(self):
+        return {"rule_id": self.rule_id, "key": self.key, "kind": self.kind,
+                "message": self.message, "paths": list(self.paths)}
+
+
 @dataclass
 class EvaluationResult:
     change_types: List[str]
@@ -435,6 +452,7 @@ class EvaluationResult:
     rule_decisions: List[RuleDecision] = field(default_factory=list)
     ignore_audit: List[IgnoreAuditEntry] = field(default_factory=list)
     temporal_warnings: List[TemporalWarning] = field(default_factory=list)
+    advisories: List[Advisory] = field(default_factory=list)
     scan_metrics: ScanMetrics = field(default_factory=ScanMetrics)
     enrichment_metrics: Optional[EnrichmentMetrics] = None
     result: str = "pass"        # pass | warn | fail
@@ -490,6 +508,7 @@ class EvaluationResult:
             "skip_reason": self.skip_reason,
             "no_policy": self.no_policy,
             "change_types": self.change_types,
+            "advisories": [item.to_dict() for item in self.advisories],
             "violations": [v.to_dict() for v in self.violations],
             "rule_decisions": [d.to_dict() for d in self.rule_decisions],
             "skipped_rules": [s.to_dict() for s in self.skipped_rules],

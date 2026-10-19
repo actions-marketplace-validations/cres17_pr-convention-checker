@@ -138,6 +138,8 @@ reason: <이유>
     "unsatisfied_groups": [{"name": "...", "required": [...], "type": "any_changed"}],
     "checklist": ["..."], "ignored": false
   }],
+  "advisories": [{"rule_id": "...", "key": "LEGACY_TOKEN", "kind": "config | mention | incomplete",
+                  "message": "...", "paths": ["docker-compose.yml"]}],
   "skipped_rules": [{"rule_id": "...", "severity": "...", "reason": "...", "message": "..."}],
   "rejected_ignores": [{"rule_id": "...", "severity": "...", "message": "..."}],
   "gate": {"fail_on_blocker": true, "fail_on_major_count": 2},
@@ -158,6 +160,7 @@ docs-only / test-only PR        → pass (평가 생략)
 BLOCKER ≥ 1 + fail_on_blocker   → fail
 MAJOR ≥ fail_on_major_count     → fail
 MAJOR ≥ 1 또는 MINOR ≥ 1       → warn
+위반 없음 + advisories 있음       → warn (enforcement: review)
 위반 없음                       → pass
 ```
 
@@ -175,3 +178,15 @@ MAJOR ≥ 1 또는 MINOR ≥ 1       → warn
 - 고정 평가 입력과 과거 결과를 덮어쓰지 않는다. 새 결과는 별도 경로에 기록한다.
 - UI 변경 후 Python·React 테스트와 UI 빌드를 확인한다. native 배포는 세 플랫폼의 desktop-release 워크플로를 사용한다.
 - 버전·테스트 수는 실행 결과와 확인한 커밋을 기준으로 기록하며, 오래된 문서의 숫자를 현재 상태로 승계하지 않는다.
+
+
+## 삭제된 환경 변수 키
+
+`content: env-keys`는 삭제된 키의 문서 잔존을 기본으로 검사한다. 정책 최상위
+`check_removed_keys: false` 또는 `exclude_removed_keys: [KEY]`로 예외를 설정한다.
+검사 끄기와 키 예외 추가는 신뢰 정책 비교에서 약화다. 확정한 미사용·문서 잔존만 위반으로 만들고,
+설정 사용·이름만 발견·전체 검색 부족은 `advisories`에 남긴다. 경고만 있으면 기본
+`on_unverified: fail`에서도 warn이며 독립적인 기존 fail은 유지한다.
+CLI·CI·MCP는 같은 설정 안내를 출력하며 데스크톱은 확인 후 정책 파일을 수정한다.
+검색 관측은 스냅샷과 입력 해시에 포함해 재실행 결과를 유지한다.
+자세한 범위는 `docs/removed-environment-keys.md`를 따른다.

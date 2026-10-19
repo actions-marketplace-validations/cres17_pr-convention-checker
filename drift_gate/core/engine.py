@@ -115,6 +115,7 @@ def run(
         gate=policy.gate,
         rule_decisions=rule_decisions,
         ignore_audit=ignore_audit,
+        advisories=list({(a.rule_id, a.key, a.kind, a.paths): a for a in session.advisories}.values()),
         scan_metrics=_scan_metrics(changed_files, policy),
     )
 

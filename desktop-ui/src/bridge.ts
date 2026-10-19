@@ -1,7 +1,7 @@
 import type { DesktopEvent } from "./events";
 import { decodeDesktopEvent } from "./eventSchema";
 
-export type Group = { name: string; required?: string[]; evidence?: string; decision?: string; verification?: string; content_mode?: string };
+export type Group = { removed_env_keys?: string[]; name: string; required?: string[]; evidence?: string; decision?: string; verification?: string; content_mode?: string };
 export type Decision = {
   rule_id: string;
   status: string;
@@ -38,6 +38,7 @@ export type ScanImpact = {
   items: { id: string; title: string; path: string; line?: number; change: string; invalidated: boolean }[];
   documents: { path: string; invalidated: boolean; kind?: DocumentKind }[];
 };
+export type Advisory = { rule_id: string; key: string; kind: string; message: string; paths: string[] };
 export type Scan = {
   repository: string;
   base: string;
@@ -50,6 +51,7 @@ export type Scan = {
     result: string;
     rule_decisions: Decision[];
     violations?: Violation[];
+    advisories?: Advisory[];
     [key: string]: unknown;
   };
 };
@@ -178,6 +180,7 @@ export interface Bridge {
   exportReport: (kind: string) => void;
   previewPolicy: (path: string, preset: string) => void;
   createPolicy: (path: string, preset: string) => void;
+  setRemovedKeyPolicy: (action: string, key: string) => void;
   checkProgressLinks: (path: string, requestId?: string) => void;
   loadTestResults: (path: string, requestId?: string) => void;
   forgetTestResults: (path: string) => void;

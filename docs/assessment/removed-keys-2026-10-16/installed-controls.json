@@ -1,0 +1,62 @@
+{
+  "scope": "controlled synthetic checks outside source checkout; not real PR accuracy",
+  "interpreter": "/private/tmp/drift-removed-keys-installed/bin/python",
+  "cases": [
+    {
+      "case": "configuration use",
+      "result": "warn",
+      "exit_code": 0,
+      "enforcement": "review",
+      "advisory_kinds": [
+        "config"
+      ]
+    },
+    {
+      "case": "mcp parity",
+      "result": "warn",
+      "identical_advisories": true
+    },
+    {
+      "case": "desktop parity",
+      "result": "warn",
+      "identical_advisories": true
+    },
+    {
+      "case": "comment only",
+      "result": "warn",
+      "exit_code": 0,
+      "enforcement": "review",
+      "advisory_kinds": [
+        "mention"
+      ]
+    },
+    {
+      "case": "static code consumer",
+      "result": "pass",
+      "exit_code": 0,
+      "enforcement": "allow",
+      "advisory_kinds": []
+    },
+    {
+      "case": "no remaining consumer",
+      "result": "fail",
+      "exit_code": 1,
+      "enforcement": "block",
+      "advisory_kinds": []
+    },
+    {
+      "case": "key exception",
+      "result": "pass",
+      "exit_code": 0,
+      "enforcement": "allow",
+      "advisory_kinds": []
+    },
+    {
+      "case": "whole check disabled",
+      "result": "pass",
+      "exit_code": 0,
+      "enforcement": "allow",
+      "advisory_kinds": []
+    }
+  ]
+}

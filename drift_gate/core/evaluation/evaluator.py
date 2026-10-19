@@ -54,11 +54,16 @@ def _threshold_candidates(files, rule, session=None):
                 meets = meets_min_intensity(intensity, minimum)
                 unavailable = False
         elif env_contract:
+            from drift_gate.core.evaluation.removed_environment import removed_environment_keys
+            removed = (getattr(getattr(session, 'policy', None), 'check_removed_keys', True)
+                       and bool(removed_environment_keys([file])))
+            if removed:
+                meets, unavailable = True, False
             facts = environment_delta([file])
             if facts.keys:
                 file = replace(file, semantic_signals=sorted(set(file.semantic_signals) | {'env-key-added'}))
                 meets = meets_min_intensity(classify_file_intensity(file), minimum)
-            if facts.uncertain and not (facts.keys and meets):
+            if facts.uncertain and not (facts.keys and meets) and not removed:
                 unavailable = True
         elif route_contract and not meets and possible_route_change([file]):
             unavailable = True
@@ -98,6 +103,8 @@ def evaluate(
     반환: (violations, skipped_rules, rejected_ignores)
     """
     session = session or AnalysisSession()
+    session.policy = policy
+    session.advisories = []
     ignore_map = {d.rule_id: d for d in drift_ignores}
 
     relevant_files = [
@@ -113,6 +120,7 @@ def evaluate(
 
     for rule in policy.rules:
         rule_id = rule.id
+        session.rule_id = rule_id
         severity = rule.severity.upper()
 
         # drift-ignore 처리
@@ -313,6 +321,9 @@ def _evaluate_groups(
         required = group.any_changed or group.all_changed
         group_type = "any_changed" if group.any_changed else "all_changed"
         content = content_requirement(group, trigger_files, changed_files, session)
+        if session is not None:
+            from drift_gate.core.models.result import Advisory
+            session.advisories.extend(Advisory(rule_id=session.rule_id, **item) for item in content.advisories)
         group_satisfied = _evaluate_group(group, changed_files) if content.decision == "paths" else content.decision == "satisfied"
         decision = ("satisfied" if group_satisfied else "violated") if content.decision == "paths" else content.decision
         if group_satisfied:
@@ -322,6 +333,7 @@ def _evaluate_groups(
                 type=group_type,
                 evidence=content.reason, decision=decision,
                 verification=content.verification, content_mode=content.mode,
+                removed_env_keys=list(content.removed_keys),
             ))
         else:
             unsatisfied.append(UnsatisfiedGroup(
@@ -330,6 +342,7 @@ def _evaluate_groups(
                 type=group_type,
                 evidence=content.reason, decision=decision,
                 verification=content.verification, content_mode=content.mode,
+                removed_env_keys=list(content.removed_keys),
             ))
     return satisfied, unsatisfied
 
