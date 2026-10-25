@@ -1,5 +1,19 @@
 from dataclasses import dataclass, field
 
+from .changed_file_source import ChangedFileSource
+
+SOURCE_FIELDS = (
+    "path", "status", "previous_path", "patch", "before_source", "after_source",
+)
+
+# Derived fields, grouped by the analysis module that fills them.
+FACT_FIELDS = {
+    "semantic": ("semantic_signals", "semantic_evidence", "analysis_method", "analysis_reason"),
+    "route": ("before_routes", "after_routes", "route_analysis_error"),
+    "document": ("documented_env_keys", "document_input_state", "document_json", "document_error"),
+    "env-usage": ("env_key_usage", "removed_env_key_candidates"),
+}
+
 
 @dataclass
 class ChangedFile:
@@ -27,6 +41,16 @@ class ChangedFile:
     # Captured key names, classifications and paths only; no environment values.
     env_key_usage: dict | None = field(default=None, repr=False)
     removed_env_key_candidates: list[str] | None = None
+
+    @property
+    def source(self) -> ChangedFileSource:
+        return ChangedFileSource(**{name: getattr(self, name) for name in SOURCE_FIELDS})
+
+    @classmethod
+    def from_source(cls, source: ChangedFileSource) -> "ChangedFile":
+        if not isinstance(source, ChangedFileSource):
+            raise TypeError("from_source requires a ChangedFileSource")
+        return cls(**{name: getattr(source, name) for name in SOURCE_FIELDS})
 
     def to_dict(self) -> dict:
         return {
