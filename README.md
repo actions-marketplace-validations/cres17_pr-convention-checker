@@ -132,6 +132,48 @@ rules:
 
 AST 분석은 Python과 TypeScript/JavaScript의 라우트·환경변수를 추출하며 Go·Java·Kotlin·Ruby에서는 공개 함수와 타입 선언을 추출합니다. 배포하는 Tree-sitter 파서는 `parser_hashes.json`과 해시를 대조합니다.
 
+## 기술별 역할
+
+![기술 구성과 담당 기능](docs/assets/readme/components.svg)
+
+### 변경 수집과 정책 평가
+
+Python 검사 엔진을 CLI·Action·데스크톱·MCP에서 함께 호출합니다. 실행 환경마다 변경 내용을 가져오는 방법은 달라도 정책을 해석하고 위반을 결정하는 코드는 공유합니다.
+
+| 기술 | 검사에서 하는 일 | 코드 |
+|---|---|---|
+| Git | 로컬 base·head 사이의 변경 파일과 diff 수집 | `drift_gate/adapters/git` |
+| GitHub REST API | PR 변경 파일과 patch 수집 | `drift_gate/adapters/github` |
+| PyYAML | 정책 파일을 읽고 트리거·필수 문서 묶음·심각도 구성 | `drift_gate/core/policy` |
+| Tree-sitter · language pack | 구문 트리에서 라우트, 환경변수 접근, 공개 선언 추출 | `drift_gate/adapters/ast` |
+| 정책 엔진 | 변경 신호와 문서 변경을 대조하고 PASS·WARN·FAIL 판정 | `drift_gate/core` |
+| GitHub Actions | PR 검사와 보고서 보관, 데스크톱 빌드 실행 | `.github/workflows` |
+
+Python·TypeScript/JavaScript에서는 라우트와 환경변수 사용을 추출하고 Go·Java·Kotlin·Ruby에서는 공개 함수와 타입 선언을 추출합니다. 언어별 추출 범위가 같지 않으며, 구문 분석 실패와 휴리스틱 사용 여부를 보고서에 남깁니다.
+
+### CLI·데스크톱·MCP
+
+CLI는 `check`로 검사하고 `report`, `explain`, `doctor`, `demo`, `holdout` 등의 명령으로 결과 조회와 진단을 수행합니다. MCP는 별도 외부 SDK 없이 JSON-RPC를 stdio로 주고받으며, MCP 클라이언트에서 정책 조회와 검사를 호출할 수 있게 합니다.
+
+데스크톱 앱은 PySide6의 Qt WebEngine 안에 React 화면을 띄웁니다. React가 직접 Python 모듈을 호출하는 대신 QWebChannel을 통해 검사 서비스와 연결됩니다. 저장소 선택, 규칙별 근거와 diff 확인, 보고서 저장을 이 창에서 처리합니다.
+
+| 구성 | 역할 |
+|---|---|
+| React 19 · TypeScript · Vite | 검사 결과와 정책 설정 화면, 프런트엔드 타입 검사·빌드 |
+| PySide6 · Qt WebEngine · QWebChannel | 데스크톱 창과 웹 화면, Python 서비스 사이의 연결 |
+| @pierre/diffs | 변경 코드의 diff 표시 |
+| Radix UI · Tailwind CSS · Lucide | 접기·구분선 등 UI 요소, 스타일, 아이콘 |
+| Zod | 프런트엔드 데이터 검증 |
+| PyInstaller | Windows·macOS 배포 패키지 생성 |
+
+### 선택적 리뷰와 검증
+
+Claude API는 검사 결과의 설명과 체크리스트를 보강합니다. 데스크톱의 구독 검토는 로그인된 Codex CLI 또는 Claude Code를 하위 프로세스로 실행합니다. 전송 내용을 먼저 보여 주고 실행 중 중지할 수 있습니다. 이 리뷰 결과가 정책 엔진의 판정을 대신하지는 않습니다.
+
+Python 쪽은 pytest·pytest-cov·Ruff·mypy로 검사하고, React 쪽은 Vitest·Testing Library·jsdom으로 확인합니다. FastAPI·Pydantic·jsonschema는 선택 설치하는 oracle 검증 환경의 의존성입니다. 기본 검사 엔진을 웹 서버로 실행하기 위해 반드시 설치하는 항목은 아닙니다.
+
+시작점은 [CLI 어댑터](drift_gate/adapters/cli), [MCP 서버](drift_gate/adapters/mcp/server.py), [데스크톱 앱](drift_gate/desktop/web_app.py), [웹 UI](desktop-ui)입니다.
+
 ## 개발
 
 ```bash
