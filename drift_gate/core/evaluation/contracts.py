@@ -9,7 +9,7 @@ from drift_gate.core.evaluation.content_result import (
     unknown,
 )
 from drift_gate.core.evaluation.environment import environment_delta
-from drift_gate.core.models.changed_file import ChangedFile
+from drift_gate.core.models.changed_file_source import ChangedFileSource
 from drift_gate.core.patch_lines import changed_lines
 from drift_gate.core.python_syntax import environment_keys
 from drift_gate.core.route_syntax import METHOD_PATTERN, literal_route
@@ -27,7 +27,7 @@ ENV_DEFINITION = re.compile(r"^\s*(?:export\s+)?([A-Z][A-Z0-9_]*)\s*=", re.M)
 
 
 def patch_lines(patch, marker):
-    return [line for kind, line in changed_lines(ChangedFile(path="", status="modified", patch=patch)) if kind == marker]
+    return [line for kind, line in changed_lines(ChangedFileSource(path="", status="modified", patch=patch)) if kind == marker]
 
 
 def env_keys_in_code(lines, path=''):

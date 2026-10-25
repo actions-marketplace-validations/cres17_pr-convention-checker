@@ -10,6 +10,7 @@ import subprocess
 from pathlib import Path, PurePosixPath
 
 from drift_gate.core.models.changed_file import ChangedFile
+from drift_gate.core.models.changed_file_source import ChangedFileSource
 
 STATUS_MAP = {
     "A": "added",
@@ -153,9 +154,9 @@ def _parse_name_status(output: bytes) -> list[ChangedFile]:
                 raise ValueError('unsafe path')
         except (ValueError, UnicodeError) as exc:
             raise GitInputError("Git 파일 경로를 읽지 못했습니다. UTF-8의 저장소 상대 경로가 필요합니다.") from exc
-        files.append(ChangedFile(path=decoded[-1],
+        files.append(ChangedFile.from_source(ChangedFileSource(path=decoded[-1],
             status='renamed' if status.startswith('R') else STATUS_MAP.get(status, 'modified'),
-            previous_path=decoded[0] if status.startswith('R') else None))
+            previous_path=decoded[0] if status.startswith('R') else None)))
         index += count + 1
     return files
 
@@ -179,8 +180,8 @@ def _with_patch(file: ChangedFile, diff_base: str, cwd: Path | None = None) -> C
         if (file.status != 'deleted' and not target.is_symlink()
             and target.resolve().is_relative_to(cwd) and target.stat().st_size <= 1_000_000):
             after = target.read_text(encoding='utf-8', errors='replace')
-    return ChangedFile(path=file.path, status=file.status, previous_path=file.previous_path,
-                       patch=patch, before_source=before, after_source=after)
+    return ChangedFile.from_source(ChangedFileSource(path=file.path, status=file.status, previous_path=file.previous_path,
+                                   patch=patch, before_source=before, after_source=after))
 
 
 def _is_binary_path(path: str) -> bool:

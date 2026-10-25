@@ -6,6 +6,7 @@ from drift_gate.adapters.docs.structured import normalize_openapi_yaml
 from drift_gate.adapters.snapshot import read_bounded_text
 from drift_gate.core.evaluation.contracts import env_keys_in_document
 from drift_gate.core.models.changed_file import ChangedFile
+from drift_gate.core.models.changed_file_source import ChangedFileSource
 
 
 def attach_env_documents(files, policy, read_text):
@@ -23,7 +24,7 @@ def attach_env_documents(files, policy, read_text):
             paths.add(file.path)
     by_path = {file.path: file for file in files}
     for path in sorted(paths):
-        file = by_path.get(path, ChangedFile(path=path, status="unchanged"))
+        file = by_path.get(path, ChangedFile.from_source(ChangedFileSource(path=path, status="unchanged")))
         text, normalized, error = None, None, ''
         try:
             text = None if file.status == "deleted" else read_text(path)

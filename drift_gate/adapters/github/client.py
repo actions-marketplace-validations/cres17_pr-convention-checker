@@ -11,6 +11,7 @@ from pathlib import PurePosixPath
 from urllib.parse import quote
 
 from drift_gate.core.models.changed_file import ChangedFile
+from drift_gate.core.models.changed_file_source import ChangedFileSource
 from drift_gate.core.models.result import DriftIgnoreDirective
 
 
@@ -88,12 +89,12 @@ class GitHubAdapter:
                 continue
             prev_raw = f.get("previous_filename")
             safe_prev = _sanitize_path(prev_raw) if prev_raw else None
-            result.append(ChangedFile(
+            result.append(ChangedFile.from_source(ChangedFileSource(
                 path=safe_path,
                 status="deleted" if f["status"] == "removed" else f["status"],
                 previous_path=safe_prev,
                 patch=f.get("patch", ""),
-            ))
+            )))
         return result
 
     def get_pr_body(self, pr_number: int) -> str:

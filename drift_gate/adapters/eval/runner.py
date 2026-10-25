@@ -684,15 +684,7 @@ def _evaluate_case(
         data = _strip_intensity_thresholds(data)
     changed_files = [ChangedFile.from_dict(f) for f in data["changed_files"]]
     if engine in {"path-only", "patch-aware"}:
-        changed_files = [
-            ChangedFile(
-                path=f.path,
-                status=f.status,
-                previous_path=f.previous_path,
-                patch=f.patch,
-            )
-            for f in changed_files
-        ]
+        changed_files = [ChangedFile.from_source(f.source) for f in changed_files]
     elif engine in {"semantic-aware", "llm-enriched"}:
         changed_files = enrich_semantic_signals(changed_files)
     drift_ignores = [
