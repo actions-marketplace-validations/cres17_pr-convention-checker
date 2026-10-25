@@ -1,205 +1,74 @@
-<div align="center">
+# Drift Gate
 
-<h1>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/drift-gate-wordmark-dark.png">
-    <img src="docs/assets/brand/drift-gate-wordmark-light.png" alt="Drift Gate" width="520">
-  </picture>
-</h1>
+코드 변경에 필요한 문서 수정이 빠졌는지 검사합니다. API 경로를 바꿨는데 명세에 이전 주소가 남아 있거나, 환경변수를 추가했는데 `.env.example`에는 없는 경우를 PR에서 확인하기 위해 만들었습니다.
 
-코드가 바뀌었는데 문서가 따라오지 않은 PR을 찾아내는 정책 엔진
+팀의 규칙은 `.drift-gate.yml`에 작성합니다. 같은 엔진을 로컬 CLI, GitHub Action, 데스크톱 앱과 MCP 서버에서 사용할 수 있습니다.
 
-[![CI](https://github.com/cres17/pr-convention-checker/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cres17/pr-convention-checker/actions/workflows/ci.yml?query=branch%3Amain)
-[![License: MIT](https://img.shields.io/badge/License-MIT-8B5CF6)](LICENSE)
-
-
-<p align="center">Python · Tree-sitter · GitHub Actions · PySide6 / React</p>
-
-</div>
-
-[구조](#architecture) · [주요 흐름](#workflow) · [설계 선택](#핵심-설계-결정) · [실행](#빠른-시작)
-
-API 경로를 바꿨는데 명세에는 이전 주소가 남아 있거나, 새 환경변수를 쓰는데 `.env.example`에 키가 없는 경우를 PR 단계에서 잡습니다. 팀이 `.drift-gate.yml`에 "이 코드가 바뀌면 이 문서도 바뀌어야 한다"는 규칙을 적으면, 변경 내용을 분석해 필요한 문서의 누락을 판정하고 근거를 보고서로 남깁니다. 같은 엔진을 로컬 CLI, GitHub Actions, 데스크톱 앱, MCP 서버에서 그대로 씁니다.
-
-| 코드 변경 | 확인하는 문서 | 검사 방식 |
-|-----------|--------------|----------|
-| API 메서드 · 경로 | API 명세 | 추가 · 삭제된 메서드와 경로를 문서 diff와 대조 |
-| 환경변수 키 | `.env.example` 등 | 새 키 누락, 코드에서 지운 키의 잔존 확인 |
-| DB 스키마 · CI · 인프라 · 인증 | 운영 · 배포 · 보안 문서 | 지정한 문서의 동반 수정 확인 |
-
-통과 · 실패는 규칙 엔진이 결정하고, LLM은 판정 뒤에 설명을 보태는 선택 기능입니다. 검증 기록은 [docs](docs)와 [계획](계획.md)에 공개합니다.
+[화면](#화면) · [검사 과정](#검사-과정) · [판정](#판정) · [시작하기](#시작하기) · [github action](#github-action) · [개발](#개발)
 
 ## 화면
 
-| 검사 결과 | 적용 정책 |
-|:---------:|:---------:|
-| <img src="docs/readme/desktop-review.png" width="440"> | <img src="docs/readme/desktop-rules.png" width="440"> |
+| 검사 결과 | 정책 설정 |
+|:---:|:---:|
+| <img src="docs/readme/desktop-review.png" alt="규칙별 검사 결과와 변경 내용" width="440"> | <img src="docs/readme/desktop-rules.png" alt="정책 설정 화면" width="440"> |
 
-데스크톱 앱(`drift-gate-desktop`)을 실행해 촬영했습니다. 아래 [빠른 시작](#빠른-시작)의 정책을 둔 예제 저장소에서 FastAPI 라우트만 추가하고 `docs/openapi.yaml`은 그대로 둔 상태로 검사한 결과입니다.
+FastAPI 라우트를 추가하고 `docs/openapi.yaml`은 수정하지 않은 예제 저장소를 검사한 화면입니다.
 
-<a id="architecture"></a>
+## 검사 과정
 
-## 구조 한눈에 보기
+![Drift Gate 구성](docs/assets/readme/architecture.svg)
 
-<p align="center">
-  <img src="docs/assets/readme/architecture.svg" alt="Drift Gate 전체 아키텍처" width="100%">
-</p>
+로컬에서는 Git diff를 읽고, Action에서는 GitHub API로 PR의 변경 파일과 patch를 가져옵니다. Tree-sitter가 코드 변경에서 라우트, 환경변수 접근과 공개 선언을 추출하면 정책 엔진이 필요한 문서의 변경 여부를 평가합니다.
 
-입력 → 신호 추출 → 정책 평가 → 판정 → 보고서. LLM은 판정 이후에 설명을 더하는 선택 계층입니다.
+| 변경 | 확인하는 내용 |
+|---|---|
+| API 메서드·경로 | 코드에서 추가·삭제된 경로와 명세 diff 비교 |
+| 환경변수 | 새 키의 누락과 삭제된 키의 잔존 여부 |
+| DB·인프라·CI·인증 | 정책에서 지정한 문서가 함께 수정되었는지 |
 
-| 단계 | 하는 일 | 코드 |
-|------|--------|------|
-| 입력 | 로컬 Git diff 또는 GitHub PR의 변경 파일 · patch와 정책 YAML을 읽음 | `adapters/git`, `adapters/github`, `core/policy` |
-| 신호 추출 | 변경된 코드에서 라우트 · 환경변수 접근 · 공개 선언을 Tree-sitter로 추출, 불완전한 diff는 휴리스틱으로 대체하고 그 사유를 기록 | `adapters/ast` |
-| 정책 평가 | `when` 조건에 맞는 규칙의 `require.groups`를 확인하고, 승인된 예외를 CODEOWNERS · 리뷰 승인으로 검증 | `core/classification`, `core/trust` |
-| 판정 | 심각도에 따라 pass · warn · fail · 검사 대상 없음을 결정 | `core/gating` |
-| 출력 | Markdown · JSON · HTML 보고서, PR 댓글, Action artifact | `reporters`, `adapters/github` |
+모든 검사가 문서의 의미까지 검증하는 것은 아닙니다. 경로의 동반 변경만 확인한 통과에는 `unverified`를 표시합니다. 파싱이 실패하거나 diff에 문맥이 부족해 휴리스틱을 사용한 경우도 보고서에 남깁니다.
 
-```text
-drift_gate/
-├── core/          정책 모델 · 분류 · 판정 · 예외 신뢰 검증 (외부 I/O 없음)
-├── adapters/      git · github · ast · cli · github_action · mcp · claude · eval
-├── reporters/     markdown · json · html
-├── desktop/       PySide6 앱과 React 빌드 결과(web/)
-└── tests/         단위 · 통합 테스트와 고정 평가 사례
-desktop-ui/        데스크톱 화면 React 소스
-examples/          FastAPI · Django · Express · Next.js · Prisma · Actions 배포용 정책 예제
-```
+![정책 평가 과정](docs/assets/readme/workflow.svg)
 
-<a id="workflow"></a>
+규칙의 `when.any_changed`에 해당하는 코드가 바뀌면 `require.groups`를 평가합니다. 필요한 묶음을 모두 만족해야 규칙이 통과합니다. 문서·테스트만 바뀌었고 명시적인 트리거도 없으면 평가를 생략할 수 있습니다.
 
-## 주요 흐름
+## 판정
 
-![pr-convention-checker의 주요 처리 흐름](docs/assets/readme/workflow.svg)
+최종 결과는 위반의 심각도와 게이트 설정으로 결정합니다. LLM은 이 판정에 참여하지 않습니다.
 
-## 세부 동작
+| 조건 | 기본 동작 |
+|---|---|
+| BLOCKER가 있고 `fail_on_blocker`가 켜짐 | FAIL |
+| MAJOR가 `fail_on_major_count` 이상, 기본 2건 | FAIL |
+| 요구 조건을 판단하지 못했거나 일부만 검증 | `on_unverified`에 따라 FAIL 또는 WARN, 기본 FAIL |
+| 그 외 MAJOR·MINOR 또는 advisory가 남음 | WARN |
+| 위 항목에 해당하지 않음 | PASS |
 
-<details>
-<summary><b>1. PR에서 실행되는 순서 (GitHub Action)</b></summary>
+경로 변경만 확인했다는 `unverified` 표시와, 요구 조건 자체를 판단하지 못한 상태는 다릅니다. 전자는 경로 기준 검사의 범위를 나타내며 위 표의 검증 불가 분기에 포함되지 않습니다.
 
-```mermaid
-sequenceDiagram
-  participant PR as Pull Request
-  participant GA as Drift Gate Action
-  participant GH as GitHub REST API
-  participant C as Claude API (선택)
-  PR->>GA: pull_request 이벤트
-  GA->>GH: 변경 파일 · patch · PR 본문 조회
-  GA->>GH: 정책 파일 조회 (기본: base 커밋)
-  opt drift-ignore 지시문이 있고 승인 요구가 켜짐
-    GA->>GH: base CODEOWNERS · 최신 리뷰 · 권한 조회
-  end
-  GA->>GA: 규칙 평가 → 판정 PASS · WARN · FAIL
-  opt API 키 있음 · fork PR 아님
-    GA->>C: 판정이 끝난 위반 목록
-    C-->>GA: 리뷰어용 체크리스트 · 설명
-  end
-  GA->>PR: 결과 댓글 갱신 (drift-gate-v1 마커, fork PR이면 생략)
-  GA->>GA: Markdown · JSON · HTML 보고서 artifact 업로드
-  GA-->>PR: FAIL이면 job 실패
-```
+### 예외 승인
 
-</details>
+PR 본문에 `drift-ignore: <rule-id> 사유`를 적어 예외를 요청할 수 있습니다. BLOCKER·MAJOR 규칙은 사유가 필요합니다. 정책에서 승인을 요구하면 base 브랜치의 CODEOWNERS와 현재 head 커밋에 대한 리뷰 승인을 대조합니다. 승인자는 작성자 외의 쓰기 권한 보유자여야 하며, 이름만 본문에 적는 것으로 승인 처리하지 않습니다.
 
-<details>
-<summary><b>2. 규칙 하나의 평가</b></summary>
+Action은 기본적으로 base 커밋의 정책을 읽습니다. 검사받는 PR에서 정책을 바꿔 자신의 위반을 없애는 일을 방지하기 위해서입니다.
 
-```mermaid
-flowchart TD
-  F([변경 파일 · patch]) --> D{문서 · 테스트만 바뀌었고<br/>명시적 트리거도 없음?}
-  D -- 예 --> SKIP[/평가 생략 · PASS/]
-  D -- 아니오 --> R[규칙마다 반복]
-  R --> T{when.any_changed<br/>경로가 바뀜?}
-  T -- 아니오 --> NA[규칙 적용 안 함]
-  T -- 예 --> A[patch 분석<br/>Tree-sitter, 실패 시 정규식]
-  A --> G{require.groups를<br/>모두 만족?}
-  G -- 예 --> OK[통과<br/>경로만 확인했으면 unverified 표시]
-  G -- 판단 불가 --> UD[undetermined<br/>검증 미완료로 보고]
-  G -- 아니오 --> I{PR 본문 drift-ignore<br/>유효한가?}
-  I -- 예 --> WV[예외 처리 waived]
-  I -- 아니오 --> V[위반<br/>severity 기록]
-  classDef bad fill:#fde8e4,stroke:#d9826f
-  classDef ok fill:#e6f4ea,stroke:#6fae7f
-  class V bad
-  class OK,WV ok
-  classDef und fill:#fff4dc,stroke:#d9b45f
-  class UD und
-```
+### 선택적 LLM 설명
 
-</details>
+Claude API 키가 있으면 판정이 끝난 위반 목록에 체크리스트와 설명을 덧붙입니다. 키가 없어도 검사는 동작합니다. fork PR에서는 이 호출과 결과 댓글 게시를 생략합니다.
 
-<details>
-<summary><b>3. 판정</b></summary>
+데스크톱의 구독 검토는 로그인한 Codex CLI 또는 Claude Code를 하위 프로세스로 실행합니다. 전송할 내용은 실행 전에 확인할 수 있으며 검토 도중 중지할 수 있습니다.
 
-위반의 심각도와 게이트 설정(`gate.fail_on_blocker`, `gate.fail_on_major_count`, `gate.on_unverified`)으로 결과를 정합니다. 경로만 확인한 통과(`unverified`)는 이 검사 대상이 아니고, 요구 조건을 판단하지 못했거나 일부만 검증한 경우만 해당합니다.
+## 시작하기
 
-```mermaid
-flowchart TD
-  B{BLOCKER 위반 있고<br/>fail_on_blocker} -- 예 --> FAIL[[FAIL]]
-  B -- 아니오 --> M{MAJOR ≥ fail_on_major_count<br/>기본 2}
-  M -- 예 --> FAIL
-  M -- 아니오 --> U{판단 불가 ·<br/>부분 검증 그룹 있음?}
-  U -- 예 --> OU{on_unverified}
-  OU -- fail 기본값 --> FAIL
-  OU -- warn --> WARN[[WARN]]
-  U -- 아니오 --> W{MAJOR · MINOR 위반<br/>또는 advisory 있음?}
-  W -- 예 --> WARN
-  W -- 아니오 --> PASS[[PASS]]
-  classDef f fill:#fde8e4,stroke:#d9826f
-  classDef w fill:#fff4dc,stroke:#d9b45f
-  classDef p fill:#e6f4ea,stroke:#6fae7f
-  class FAIL f
-  class WARN w
-  class PASS p
-```
-
-</details>
-
-<details>
-<summary><b>4. drift-ignore 예외 승인</b></summary>
-
-```mermaid
-flowchart TD
-  D[PR 본문<br/>drift-ignore: rule-id 사유] --> S{대상 규칙이<br/>BLOCKER · MAJOR?}
-  S -- 예 --> RS{사유 있음?}
-  RS -- 아니오 --> REJ[거부 · 위반 유지]
-  RS -- 예 --> AP
-  S -- 아니오 --> AP{정책이 CODEOWNERS<br/>승인을 요구?}
-  AP -- 아니오 --> OK[예외 인정]
-  AP -- 예 --> CO{base 브랜치 CODEOWNERS 중<br/>쓰기 권한 있는 작성자 외 사람이<br/>현재 head 커밋에 승인?}
-  CO -- 예 --> OK
-  CO -- 아니오 --> REJ
-  classDef bad fill:#fde8e4,stroke:#d9826f
-  classDef ok fill:#e6f4ea,stroke:#6fae7f
-  class REJ bad
-  class OK ok
-```
-
-</details>
-
-
-## 핵심 설계 결정
-
-| 결정 | 방식 | 위치 |
-|------|------|------|
-| 판정은 규칙 엔진, LLM은 설명만 | 통과 · 실패는 정책 평가 결과로만 정해지고, Claude는 판정이 끝난 위반 목록에 리뷰어용 체크리스트와 설명을 덧붙입니다. API 키가 없으면 건너뜁니다. | `core/gating`, `adapters/claude/enricher.py` |
-| PR이 자신을 심판하는 정책을 바꾸지 못하게 | Action의 `policy_source` 기본값은 `base`라서 PR의 base 커밋에 있는 정책으로 판정합니다. PR 작성자가 믿을 수 있을 때만 `workspace`를 씁니다. | `action.yml` |
-| 예외는 사유와 승인을 요구 | PR 본문의 `drift-ignore: <rule-id>`는 BLOCKER · MAJOR 규칙이면 사유가 있어야 받아들이고, 승인자 이름만 적은 것은 승인으로 인정하지 않습니다. 정책에서 승인을 요구하면 base 브랜치의 CODEOWNERS와 현재 리뷰 승인을 대조합니다. | `adapters/github/approvals.py`, `core/trust` |
-| 확인하지 못한 것은 확인했다고 하지 않음 | 파싱에 실패하거나 diff 조각이 불완전하면 정규식 휴리스틱으로 넘어가고 어떤 방법을 썼는지 보고서에 표시합니다. 경로만 확인한 PASS에는 `unverified`와 "내용을 검증한 것이 아님" 문구가 붙습니다. | `adapters/ast`, `reporters` |
-| 코어는 외부 I/O 없이 | 정책 모델 · 분류 · 판정 · 예외 신뢰 검증은 `core`에 두고 git · GitHub · AST · CLI는 `adapters`에 분리해, 같은 엔진을 CLI · Action · 데스크톱 · MCP에서 그대로 씁니다. `core`는 mypy로 검사합니다. | `drift_gate/core`, `drift_gate/adapters` |
-| 배포하는 파서 라이브러리를 해시로 확인 | Tree-sitter 파서는 `tree-sitter-language-pack`에서 불러오고, 배포본에 넣는 파서 라이브러리는 `parser_hashes.json`의 해시와 대조합니다. | `drift_gate/adapters/parser_hashes.json`, `.github/workflows/parser-hashes.yml` |
-
-## 빠른 시작
-
-Python 3.10 이상이 필요합니다.
+Python 3.10 이상에서 저장소를 내려받은 뒤 실행합니다.
 
 ```bash
 pip install -e .
-drift-gate init --preset api     # auto · api · auth · ci · db · env · focused-python · fullstack
-drift-gate check --base HEAD     # 작업 트리 변경을 정책으로 검사
+drift-gate init --preset api
+drift-gate check --base HEAD
 ```
 
-FastAPI 라우트를 추가하고 명세(`docs/openapi.yaml`)는 고치지 않은 작업 트리에서 아래 정책으로 `drift-gate check --base HEAD`를 실행한 결과입니다.
+`check --base HEAD`는 작업 트리의 변경을 검사합니다. 예를 들어 FastAPI 코드를 수정할 때 OpenAPI 문서도 바뀌어야 한다면 다음처럼 작성합니다.
 
 ```yaml
 rules:
@@ -214,48 +83,43 @@ rules:
           any_changed: ["docs/openapi.yaml"]
 ```
 
-| 상태 | 판정 | 보고서 내용 |
-|------|------|------------|
-| 명세를 고치지 않음 | `WARN` (MAJOR 1건, 종료 코드 0) | 트리거 `app/main.py`, 누락 문서 `docs/openapi.yaml`, 체크리스트 `API 명세 업데이트`, diff 근거, `drift-ignore` 예외 안내 |
-| `docs/openapi.yaml` 수정 | `PASS` (위반 0건) | 경로 변경만 확인했으므로 `Verification: unverified` 표시 |
+위 정책은 문서 경로의 변경을 요구하는 예제입니다. 명세를 고치지 않으면 MAJOR 1건으로 기본 판정은 WARN, 종료 코드는 0입니다. 명세도 수정하면 PASS가 되지만 내용까지 대조한 검사는 아니므로 `unverified`가 표시됩니다.
 
-심각도에 따라 `warn` 또는 `fail`로 판정합니다. 프레임워크별 정책 예제는 [examples](examples)에 있습니다.
+초기 정책은 `auto`, `api`, `auth`, `ci`, `db`, `env`, `focused-python`, `fullstack` 프리셋에서 고를 수 있습니다. 프레임워크별 예시는 [examples](examples)에 있습니다.
 
 ## GitHub Action
 
-`action.yml`(composite action)의 주요 입력입니다.
+루트의 `action.yml`은 composite action입니다. PR 이벤트에서 실행하면 변경과 정책을 조회하고 결과를 댓글 및 보고서로 남깁니다. 같은 마커의 댓글을 갱신하므로 실행할 때마다 요약 댓글을 추가하지 않습니다.
 
 | 입력 | 기본값 | 용도 |
-|------|--------|------|
-| `policy_file` | `.drift-gate.yml` | 정책 파일 경로 |
-| `policy_source` | `base` | `base`는 PR base 커밋의 정책, `workspace`는 체크아웃된 PR의 정책 |
-| `post_comment` | `true` | 결과를 PR 댓글로 게시 (`<!-- drift-gate-v1 -->` 마커로 기존 댓글을 갱신) |
-| `fail_on_blocker` | `true` | 판정이 fail이면 job 실패 |
-| `upload_report_artifact` | `true` | Markdown · JSON · HTML 보고서를 artifact로 업로드 |
-| `anthropic_api_key` | (없음) | 선택. 체크리스트 설명 생성용 |
+|---|---|---|
+| `policy_file` | `.drift-gate.yml` | 정책 경로 |
+| `policy_source` | `base` | base 커밋 또는 체크아웃한 workspace의 정책 |
+| `post_comment` | `true` | PR 결과 댓글 |
+| `fail_on_blocker` | `true` | fail 판정을 job 실패로 반영 |
+| `upload_report_artifact` | `true` | Markdown·JSON·HTML 보고서 보관 |
+| `anthropic_api_key` | 없음 | 선택적 설명 생성 |
 
-출력으로 `result`(pass / warn / fail / skip), `blocker_count`, `major_count`, `violation_count`, `policy_origin`, `comment_url`을 제공합니다.
+출력은 `result`, `blocker_count`, `major_count`, `violation_count`, `policy_origin`, `comment_url`입니다. `result`는 `pass / warn / fail / skip` 중 하나입니다.
 
-## 검증
+## 코드 구성
+
+`drift_gate/core`에는 외부 I/O 없이 실행되는 정책 모델, 분류, 판정과 예외 검증을 둡니다. Git, GitHub, AST, CLI와 MCP 연결은 `adapters`가 맡고, 출력 형식은 `reporters`에서 처리합니다. 실행 환경이 달라도 같은 규칙 엔진을 사용하기 위한 구분입니다.
+
+데스크톱은 PySide6의 Qt WebEngine에 React 화면을 띄우고 QWebChannel로 Python 검사 서비스와 연결합니다. React 소스는 `desktop-ui/`, 배포용 웹 빌드 결과는 `drift_gate/desktop/web/`에 있습니다.
+
+AST 분석은 Python과 TypeScript/JavaScript의 라우트·환경변수를 추출하며 Go·Java·Kotlin·Ruby에서는 공개 함수와 타입 선언을 추출합니다. 배포하는 Tree-sitter 파서는 `parser_hashes.json`과 해시를 대조합니다.
+
+## 개발
 
 ```bash
 pip install -e ".[dev]"
 ruff check drift_gate/ --select=E9,F
 mypy drift_gate/core --ignore-missing-imports
 pytest drift_gate/tests
-drift-gate demo                  # 합성 21개 사례로 경로 기준 방식과 patch 분석 방식을 비교
+drift-gate demo
 ```
 
-`ci.yml`은 Ruff · mypy(core) job과 별도로 Ubuntu · Windows · macOS × Python 3.10 · 3.11 · 3.12의 9개 조합에서 pytest를 실행합니다. `benchmark.yml`은 합성 평가셋의 탐지 결과를, `parser-hashes.yml`은 파서 해시를 확인합니다. 평가셋은 작성자가 만든 합성 사례이며 원자료는 [`docs/assessment`](docs/assessment)에 있습니다.
+CI는 Ubuntu·Windows·macOS와 Python 3.10·3.11·3.12의 9개 조합에서 테스트합니다. 정적 검사, 합성 평가셋, 파서 해시 확인은 별도 작업으로 실행합니다. 데스크톱 배포는 PyInstaller로 Windows와 macOS 패키지를 만듭니다.
 
-## 기술 구성
-
-| 기술 | 용도 | 위치 |
-|------|------|------|
-| PyYAML — 정책 파일 | 규칙은 `when.any_changed`(트리거 경로), `require.groups`(함께 바뀌어야 할 문서 묶음), `severity`, `message`로 구성. 모든 묶음을 만족해야 통과하고 하나라도 비면 위반 | `core/policy/loader.py`, `validator.py` |
-| Tree-sitter | Python · TypeScript/JavaScript는 라우트 데코레이터 · Express 라우트 · 환경변수 접근을, Go · Java · Kotlin · Ruby는 공개 함수와 타입 선언을 추출 | `adapters/ast` |
-| Git · GitHub REST API | 로컬은 `git diff`, PR은 REST API로 변경 파일 목록과 patch 수집 | `adapters/git`, `adapters/github` |
-| CLI | `check`가 기본이고 `report` · `explain` · `doctor` · `demo` · `holdout` 등의 하위 명령 | `adapters/cli` |
-| MCP 서버 | 외부 SDK 없이 JSON-RPC를 stdio로 주고받는 서버(`drift-gate-mcp`). MCP 클라이언트가 정책 조회와 검사를 도구로 호출 | `adapters/mcp/server.py` |
-| PySide6 · React — 데스크톱 앱 | Qt WebEngine 창에 React 화면을 띄우고 QWebChannel로 Python 검사 서비스와 연결. 저장소를 고르면 규칙별 근거와 diff를 보여 주고 보고서를 저장. `desktop-build.yml`이 PyInstaller로 Windows · macOS 패키지 생성 | `drift_gate/desktop/web_app.py`, `desktop-ui` |
-| Claude API · Codex · Claude Code (선택) | 위반 목록에 대한 체크리스트와 설명. 데스크톱 앱의 구독 검토는 로그인한 Codex CLI 또는 Claude Code를 하위 프로세스로 실행하고, 보내기 전에 전송 내용을 미리 보여 주며 도중에 중지 가능 | `adapters/claude/enricher.py`, `desktop/subscription_review.py` |
+`demo`는 합성 21개 사례에서 경로 기준 검사와 patch 분석을 비교합니다. 실제 조직의 PR 성능을 측정한 수치가 아니며, 평가 원자료와 검증 기록은 [docs/assessment](docs/assessment)에 있습니다.
