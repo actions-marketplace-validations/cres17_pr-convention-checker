@@ -40,14 +40,13 @@ FastAPI 라우트를 추가하고 `docs/openapi.yaml`은 수정하지 않은 예
 
 ## 검사 과정
 
-<p><img src="https://img.shields.io/badge/MAIN%20FEATURE-586AD3?style=flat-square" alt="MAIN 기능" height="20"></p>
 
 ![Drift Gate 구성](docs/assets/readme/architecture.svg)
 
 로컬에서는 Git diff를 읽고, Action에서는 GitHub API로 PR의 변경 파일과 patch를 가져옵니다. Tree-sitter가 코드 변경에서 라우트, 환경변수 접근과 공개 선언을 추출하면 정책 엔진이 필요한 문서의 변경 여부를 평가합니다.
 
 | 변경 | 확인하는 내용 |
-|---|---|
+|:---:|:---:|
 | API 메서드·경로 | 코드에서 추가·삭제된 경로와 명세 diff 비교 |
 | 환경변수 | 새 키의 누락과 삭제된 키의 잔존 여부 |
 | DB·인프라·CI·인증 | 정책에서 지정한 문서가 함께 수정되었는지 |
@@ -60,12 +59,11 @@ FastAPI 라우트를 추가하고 `docs/openapi.yaml`은 수정하지 않은 예
 
 ## 판정
 
-<p><img src="https://img.shields.io/badge/MAIN%20FEATURE-586AD3?style=flat-square" alt="MAIN 기능" height="20"></p>
 
 최종 결과는 위반의 심각도와 게이트 설정으로 결정합니다. LLM은 이 판정에 참여하지 않습니다.
 
 | 조건 | 기본 동작 |
-|---|---|
+|:---:|:---:|
 | BLOCKER가 있고 `fail_on_blocker`가 켜짐 | FAIL |
 | MAJOR가 `fail_on_major_count` 이상, 기본 2건 | FAIL |
 | 요구 조건을 판단하지 못했거나 일부만 검증 | `on_unverified`에 따라 FAIL 또는 WARN, 기본 FAIL |
@@ -117,12 +115,11 @@ rules:
 
 ## GitHub Action
 
-<p><img src="https://img.shields.io/badge/SUB%20FEATURE-A5AFE7?style=flat-square" alt="SUB 기능" height="20"></p>
 
 루트의 `action.yml`은 composite action입니다. PR 이벤트에서 실행하면 변경과 정책을 조회하고 결과를 댓글 및 보고서로 남깁니다. 같은 마커의 댓글을 갱신하므로 실행할 때마다 요약 댓글을 추가하지 않습니다.
 
 | 입력 | 기본값 | 용도 |
-|---|---|---|
+|:---:|:---:|:---:|
 | `policy_file` | `.drift-gate.yml` | 정책 경로 |
 | `policy_source` | `base` | base 커밋 또는 체크아웃한 workspace의 정책 |
 | `post_comment` | `true` | PR 결과 댓글 |
@@ -134,7 +131,6 @@ rules:
 
 ## 코드 구성
 
-<p><img src="https://img.shields.io/badge/SUB%20FEATURE-A5AFE7?style=flat-square" alt="SUB 기능" height="20"></p>
 
 `drift_gate/core`에는 외부 I/O 없이 실행되는 정책 모델, 분류, 판정과 예외 검증을 둡니다. Git, GitHub, AST, CLI와 MCP 연결은 `adapters`가 맡고, 출력 형식은 `reporters`에서 처리합니다. 실행 환경이 달라도 같은 규칙 엔진을 사용하기 위한 구분입니다.
 
@@ -151,7 +147,7 @@ AST 분석은 Python과 TypeScript/JavaScript의 라우트·환경변수를 추�
 Python 검사 엔진을 CLI·Action·데스크톱·MCP에서 함께 호출합니다. 실행 환경마다 변경 내용을 가져오는 방법은 달라도 정책을 해석하고 위반을 결정하는 코드는 공유합니다.
 
 | 기술 | 검사에서 하는 일 | 코드 |
-|---|---|---|
+|:---:|:---:|:---:|
 | Git | 로컬 base·head 사이의 변경 파일과 diff 수집 | `drift_gate/adapters/git` |
 | GitHub REST API | PR 변경 파일과 patch 수집 | `drift_gate/adapters/github` |
 | PyYAML | 정책 파일을 읽고 트리거·필수 문서 묶음·심각도 구성 | `drift_gate/core/policy` |
@@ -168,7 +164,7 @@ CLI는 `check`로 검사하고 `report`, `explain`, `doctor`, `demo`, `holdout` 
 데스크톱 앱은 PySide6의 Qt WebEngine 안에 React 화면을 띄웁니다. React가 직접 Python 모듈을 호출하는 대신 QWebChannel을 통해 검사 서비스와 연결됩니다. 저장소 선택, 규칙별 근거와 diff 확인, 보고서 저장을 이 창에서 처리합니다.
 
 | 구성 | 역할 |
-|---|---|
+|:---:|:---:|
 | React 19 · TypeScript · Vite | 검사 결과와 정책 설정 화면, 프런트엔드 타입 검사·빌드 |
 | PySide6 · Qt WebEngine · QWebChannel | 데스크톱 창과 웹 화면, Python 서비스 사이의 연결 |
 | @pierre/diffs | 변경 코드의 diff 표시 |
