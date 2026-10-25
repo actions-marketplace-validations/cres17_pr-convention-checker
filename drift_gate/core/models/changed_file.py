@@ -87,11 +87,6 @@ class ChangedFile:
             **({"route_analysis_error": self.route_analysis_error} if self.route_analysis_error else {}),
         }
 
-    @property
-    def supplied_facts(self) -> frozenset[str]:
-        """Derived fields this instance took from recorded input, not from analysis."""
-        return getattr(self, "_supplied_facts", frozenset())
-
     @classmethod
     def from_dict(cls, d: dict) -> "ChangedFile":
         unknown = set(d) - set(SOURCE_FIELDS)
@@ -103,13 +98,12 @@ class ChangedFile:
 
     @classmethod
     def from_legacy_fixture(cls, d: dict) -> "ChangedFile":
-        """Frozen fixtures that record some derived facts; those facts are marked as supplied."""
+        """Frozen fixtures that record some derived facts as input."""
         unknown = set(d) - set(SOURCE_FIELDS) - set(LEGACY_FACT_FIELDS)
         if unknown:
             raise ValueError(f"unknown changed-file fields: {sorted(unknown)}")
         changed = cls.from_source(_source_of(d))
-        supplied = [name for name in LEGACY_FACT_FIELDS if name in d]
-        for name in supplied:
-            setattr(changed, name, d[name])
-        setattr(changed, "_supplied_facts", frozenset(supplied))
+        for name in LEGACY_FACT_FIELDS:
+            if name in d:
+                setattr(changed, name, d[name])
         return changed

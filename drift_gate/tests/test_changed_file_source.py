@@ -60,7 +60,6 @@ def test_from_dict_accepts_source_fields_only():
 
     assert changed.source == ChangedFileSource(path="a.py", status="modified",
                                                before_source="x = 1\n", after_source="x = 2\n")
-    assert changed.supplied_facts == frozenset()
 
 
 @pytest.mark.parametrize("key", ["semantic_signals", "document_input_state", "env_key_usage"])
@@ -74,14 +73,14 @@ def test_from_dict_rejects_unknown_fields():
         ChangedFile.from_dict({"path": "a.py", "note": "x"})
 
 
-def test_legacy_fixture_keeps_recorded_facts_and_marks_them_supplied():
+def test_legacy_fixture_keeps_recorded_facts():
     changed = ChangedFile.from_legacy_fixture({
         "path": "docs/env.md", "status": "unchanged", "documented_env_keys": ["API_KEY"],
         "document_input_state": "available",
     })
 
     assert changed.documented_env_keys == ["API_KEY"]
-    assert changed.supplied_facts == frozenset({"documented_env_keys", "document_input_state"})
+    assert changed.document_input_state == "available"
     assert list(dataclasses.asdict(changed).keys()) == SERIALIZED_ORDER
 
 
