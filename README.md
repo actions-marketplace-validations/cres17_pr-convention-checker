@@ -4,23 +4,25 @@
 
 <h1 align="center">Drift Gate</h1>
 
-<div align="center">
+<p align="center">
+  <a href="https://github.com/cres17/pr-convention-checker/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://github.com/cres17/pr-convention-checker/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" height="20"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-8B5CF6" alt="License: MIT" height="20"></a>
+</p>
 
-[![CI](https://github.com/cres17/pr-convention-checker/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cres17/pr-convention-checker/actions/workflows/ci.yml?query=branch%3Amain)
-[![License: MIT](https://img.shields.io/badge/License-MIT-8B5CF6)](LICENSE)
-
-![Python 3.10+](https://img.shields.io/badge/Python%203.10%2B-3776AB?style=flat&logoColor=white&logo=python)
-![Tree-sitter](https://img.shields.io/badge/Tree--sitter-2B3443?style=flat&logoColor=white)
-![GitHub REST API](https://img.shields.io/badge/GitHub%20REST%20API-181717?style=flat&logoColor=white&logo=github)
-![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?style=flat&logoColor=white&logo=githubactions)
-![MCP](https://img.shields.io/badge/MCP-000000?style=flat&logoColor=white&logo=modelcontextprotocol)
-![PySide6](https://img.shields.io/badge/PySide6-41CD52?style=flat&logoColor=black&logo=qt)
-![React 19](https://img.shields.io/badge/React%2019-61DAFB?style=flat&logoColor=black&logo=react)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logoColor=white&logo=typescript)
-![Claude API](https://img.shields.io/badge/Claude%20API-D97757?style=flat&logoColor=white&logo=claude)
-![pytest](https://img.shields.io/badge/pytest-0A9EDC?style=flat&logoColor=white&logo=pytest)
-
-</div>
+<p align="center">
+  <img src="https://img.shields.io/badge/Python%203.10%2B-3776AB?style=flat&amp;logoColor=white&amp;logo=python" alt="Python 3.10+" height="20">
+  <img src="https://img.shields.io/badge/Tree--sitter-2B3443?style=flat&amp;logoColor=white" alt="Tree-sitter" height="20">
+  <img src="https://img.shields.io/badge/GitHub%20REST%20API-181717?style=flat&amp;logoColor=white&amp;logo=github" alt="GitHub REST API" height="20">
+  <img src="https://img.shields.io/badge/GitHub%20Actions-2088FF?style=flat&amp;logoColor=white&amp;logo=githubactions" alt="GitHub Actions" height="20">
+  <br>
+  <img src="https://img.shields.io/badge/MCP-000000?style=flat&amp;logoColor=white&amp;logo=modelcontextprotocol" alt="MCP" height="20">
+  <img src="https://img.shields.io/badge/PySide6-41CD52?style=flat&amp;logoColor=black&amp;logo=qt" alt="PySide6" height="20">
+  <img src="https://img.shields.io/badge/React%2019-61DAFB?style=flat&amp;logoColor=black&amp;logo=react" alt="React 19" height="20">
+  <br>
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=flat&amp;logoColor=white&amp;logo=typescript" alt="TypeScript" height="20">
+  <img src="https://img.shields.io/badge/Claude%20API-D97757?style=flat&amp;logoColor=white&amp;logo=claude" alt="Claude API" height="20">
+  <img src="https://img.shields.io/badge/pytest-0A9EDC?style=flat&amp;logoColor=white&amp;logo=pytest" alt="pytest" height="20">
+</p>
 
 코드 변경에 필요한 문서 수정이 빠졌는지 검사합니다. API 경로를 바꿨는데 명세에 이전 주소가 남아 있거나, 환경변수를 추가했는데 `.env.example`에는 없는 경우를 PR에서 확인하기 위해 만들었습니다.
 
