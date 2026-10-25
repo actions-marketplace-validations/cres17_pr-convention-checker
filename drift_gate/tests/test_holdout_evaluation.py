@@ -206,3 +206,30 @@ def test_case_without_the_document_a_rule_verifies_is_rejected_before_freezing()
     unchanged = deepcopy(complete)
     unchanged['changed_files'][1]['status'] = 'unchanged'
     h._validate_cases([unchanged])
+
+
+ENV_POLICY = {'rules': [{'id': 'env', 'when': {'any_changed': ['config.py']},
+                         'require': {'groups': [{'name': 'sample', 'all_changed': ['.env.example'],
+                                                 'content': 'env-keys'}]},
+                         'severity': 'blocker'}]}
+
+
+def env_case(documented_env_keys, after_source='A_KEY=1\n'):
+    sample = {'path': '.env.example', 'status': 'unchanged', 'after_source': after_source,
+              'document_input_state': 'available', 'documented_env_keys': documented_env_keys}
+    code = {'path': 'config.py', 'status': 'modified', 'patch': '@@\n+x = os.getenv("NEW_KEY")\n',
+            'after_source': 'import os\nx = os.getenv("NEW_KEY")\n'}
+    return {'case_id': 'env1', 'repository': 'org/env', 'source_family': 'env', 'policy': ENV_POLICY,
+            'changed_files': [code, sample], 'expected': {'gate': 'pass', 'rules': {}}}
+
+
+@pytest.mark.parametrize('keys, text', [(['A_KEY', 'NEW_KEY'], 'A_KEY=1\n'), (['A_KEY'], None), ('A_KEY', 'A_KEY=1\n')])
+def test_documented_env_keys_must_match_the_carried_document(keys, text):
+    # Decision 2026-10-21 #3: a case must not declare documented keys its own document text does not contain.
+    with pytest.raises(h.HoldoutError, match='documented_env_keys'):
+        h.split({'cases': [env_case(keys, text)]}, seed='s', holdout_fraction=0.999)
+
+
+def test_documented_env_keys_matching_the_document_are_accepted():
+    held, _ = h.split({'cases': [env_case(['A_KEY'])]}, seed='s', holdout_fraction=0.999)
+    assert [c['case_id'] for c in held['cases']] == ['env1']

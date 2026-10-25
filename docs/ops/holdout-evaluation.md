@@ -57,6 +57,8 @@ Wilson 구간은 비율별 계산 참고값이다. 같은 PR의 규칙들이 독
 문서에 있는 PR도 위반으로, 설정 코드와 문서를 함께 바꾼 PR은 `document input unavailable`로 판단 보류되어 엔진이 아니라 수집 코드의
 누락을 재게 된다. 수집 도구는 `adapters/docs/content.py::attach_env_documents`를 그대로 불러 같은 규칙으로 붙이는 것을 권한다
 (`docs/assessment/pr-pilot-2026-10-21/collect.py`가 예다).
+`documented_env_keys`를 함께 넣으면 그 파일의 `after_source`에서 다시 계산한 키 목록과 같아야 한다. 다르면 `split`·`freeze`·`run`이
+사례를 거부한다. 엔진은 이 값을 다시 계산하지 않고 판정에 쓰기 때문이다.
 
 저장소의 고정 합성 사례(`adapters/eval`)와 개발 중 본 사례는 holdout이 아니다. 그런 출처는
 `--regression-families`로 지정해 holdout에서 제외한다. 이 저장소에는 holdout 후보 사례 파일이 들어 있지 않으며,

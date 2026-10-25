@@ -77,6 +77,7 @@ def _validate_case(case):
         raise HoldoutError(f"case {case['case_id']}: changed_files must be a list")
     for data in case['changed_files']:
         _changed_file(data)  # unknown or malformed fields are rejected before anything is frozen
+        _check_documented_keys(case['case_id'], data)
     expected = case['expected']
     if not isinstance(expected, dict) or expected.get('gate') not in {'pass', 'warn', 'fail'} or not isinstance(expected.get('rules'), dict):
         raise HoldoutError(f"case {case['case_id']}: expected gate and rules are required")
@@ -95,6 +96,20 @@ def _validate_case(case):
     for rule_id, row in expected['rules'].items():
         if not isinstance(row, dict) or row.get('decision') not in stats.DECISIONS or row.get('support') not in {'supported', 'unsupported'}:
             raise HoldoutError(f"case {case['case_id']} rule {rule_id}: invalid expected decision/support")
+
+
+def _check_documented_keys(case_id, data):
+    """``documented_env_keys`` is a derived fact the engine trusts as given; it must match the carried text.
+
+    A case could otherwise declare keys its document does not contain (decision 2026-10-21 #3).
+    """
+    from drift_gate.core.evaluation.contracts import env_keys_in_document
+    keys = data.get('documented_env_keys')
+    if keys is None:
+        return
+    text = data.get('after_source')
+    if not isinstance(text, str) or not isinstance(keys, list) or sorted(env_keys_in_document(text)) != sorted(keys):
+        raise HoldoutError(f"case {case_id}: documented_env_keys of {data.get('path')} do not match its after_source")
 
 
 def _missing_required_documents(policy, changed_files):

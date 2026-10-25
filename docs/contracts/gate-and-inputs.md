@@ -1,5 +1,13 @@
 # Gate와 입력 계약
 
+## 2026-10-25 남은 한계 보완과 결정 반영
+
+- JS·TS 의존 그래프는 주석과 module 지정자가 아닌 문자열·template 본문·정규식 literal의 내용을 가린 뒤 import를 찾는다(아래 `scope` 항목).
+- 지속 분석 캐시는 `DRIFT_GATE_CACHE_KEY`가 있으면 HMAC으로 entry를 인증한다(아래 `지속 분석 캐시`). 키가 없으면 기존 동작과 같다.
+- holdout 사례의 `documented_env_keys`가 같은 파일 `after_source`에서 다시 계산한 값과 다르면 사례를 거부한다.
+- `review` 명령은 다음 버전에서 제거한다. 이번 버전은 stderr에 경고 한 줄을 더할 뿐 stdout·종료 코드는 같다.
+- 규칙의 `min_change_intensity` 기본값 `any`는 유지한다. 주석만 바뀐 변경도 규칙을 발동시킨다(`docs/detector-guide.md`).
+
 ## 2026-10-23 판정에서 빠진 입력의 표시와 설정 오류
 
 - 로컬 `check`/`report`는 기존대로 Git이 추적하지 않는(untracked) 파일을 평가 입력에 넣지 않는다. 판정 결과와 종료 코드는 바뀌지 않는다.
@@ -165,8 +173,10 @@ request body·parameter와 local `$ref`, `allOf`, `anyOf`, `oneOf`다.
 - 정적 import(Python `import`·literal `import_module`, JS/TS literal `import`/`require`/`import("...")`) 그래프의
   before/after. 비 literal 동적 import(template literal 포함), 해석되지 않는 상대 import, 저장소 안 package의
   미해석 import는 열린 경계다. 영향 범위는 Gbefore ∪ Gafter의 역방향 도달이다. 열린 경계는 범위 밖 module에
-  있어도 그 module이 seed에 의존할 수 있으므로 `closed=false`로 만든다. 정규식 기반 JS 탐지이므로 주석·문자열 안의
-  호출을 구분하지 않는다.
+  있어도 그 module이 seed에 의존할 수 있으므로 `closed=false`로 만든다. JS 탐지는 정규식을 쓰되, 먼저 주석을 지우고
+  module 지정자 자리(`from`·`import`·`require(`·`import(` 뒤)가 아닌 문자열·template 본문·정규식 literal의 내용을 가린다.
+  그래서 주석·일반 문자열 안의 import 문구는 edge나 동적 import 경계가 되지 않는다. template의 `${...}` 안은 코드로 본다.
+  나눗셈과 정규식 literal의 구분은 앞 문자·keyword로 판정하는 근사이며, 완전한 JS 문법 분석은 아니다.
 - 정책 `services: [{id, paths, entrypoints}]`에 따른 route identity `(service, entrypoint, METHOD, path)`와
   env identity `(service, KEY)`. 어느 서비스에도 속하지 않거나 둘 이상에 속하는 module은
   `ambiguous_service_scope`이며 사실을 병합하지 않는다. 서비스가 없으면 저장소 전체를 하나의
@@ -205,9 +215,12 @@ POSIX에서는 process group을 만들고 종료 시 group 전체를 kill한다.
 key로 사실을 저장한다. key에는 승인 context와 자원 제한 칸도 있으나 `scope`는 현재 고정값(`none`, `{}`)을
 넣는다. `complete`와 결정적 `unsupported`만 저장하고 timeout·crash·자원 제한은 저장하지 않는다. 읽을 때
 key 입력을 다시 hash하고 결과(`status`·`value`)를 `result_sha256`과 대조해 다르면 거부·재계산한다(entry v2,
-v1 entry는 거부). 두 digest가 같은 파일에 있으므로 entry 전체를 다시 쓸 수 있는 주체는 일관된 위조 entry를 만들
-수 있다. 이 검사는 손상과 부분 수정을 검출할 뿐이며(`integrity`), 신뢰하지 않는 주체가 쓸 수 있는 캐시를 merge
-판단 근거로 쓰지 않는다. `trusted-check`는 캐시를 쓰지 않는다. `--isolated-workers`와 함께 쓰면 캐시는 사용되지
+v1 entry는 거부). 키가 없으면 두 digest가 같은 파일에 있으므로 entry 전체를 다시 쓸 수 있는 주체는 일관된 위조
+entry를 만들 수 있고, 이 검사는 손상과 부분 수정만 검출한다(`integrity: detects-corruption-and-partial-edits-not-forgery`).
+환경 변수 `DRIFT_GATE_CACHE_KEY`(`key_id:base64-key`, 32바이트 이상)를 설정하면 entry마다 그 키의 HMAC-SHA256을
+기록하고, MAC이 없거나 맞지 않는 entry(키 없이 쓴 entry, 다른 키의 entry 포함)를 거부·재계산한다
+(`integrity: keyed-hmac-rejects-entries-without-the-key`). 키는 캐시 디렉터리 밖(CI secret 등)에 둔다. 공유 키 인증이므로
+키를 가진 주체의 위조는 막지 못한다. 어느 경우에도 신뢰하지 않는 주체가 쓸 수 있는 캐시를 merge 판단 근거로 쓰지 않는다. `trusted-check`는 캐시를 쓰지 않는다. `--isolated-workers`와 함께 쓰면 캐시는 사용되지
 않는다.
 
 ### holdout 평가 (W10)
@@ -219,7 +232,8 @@ packet은 frozen digest·protocol을, labels는 packet·frozen digest·protocol�
 digest·protocol이 results와 같고 labels의 항목이 results에 있을 때만 계산한다. `run`은 제품과 같은
 `adapters.inspection.inspect` 경로(Express 전처리 포함)를 사례의 고정 평가 날짜로 실행하고, 주어진 frozen
 SHA-256이 내용과 다르면 거부한다. 검토 label의 출처는 `human`과 `llm-proxy`로 스스로 선언되며 도구가 확인할 수
-없고, 지표는 출처별로 따로 계산한다. 절차는 `docs/ops/holdout-evaluation.md`에 있다.
+없고, 지표는 출처별로 따로 계산한다. 사례 파일의 `documented_env_keys`는 같은 파일 `after_source`에서 다시 계산한
+목록과 같아야 하며 다르면 사례를 거부한다. 절차는 `docs/ops/holdout-evaluation.md`에 있다.
 
 ### 조직 서비스 (W17)
 

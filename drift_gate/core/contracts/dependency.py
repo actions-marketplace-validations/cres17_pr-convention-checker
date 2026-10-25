@@ -152,8 +152,131 @@ def _js_resolve(path, specifier, paths):
     return None
 
 
+_SPECIFIER_CONTEXT = re.compile(r'(?:(?<![.\w$])(?:from|import)|(?<![.\w$])(?:require|import)\s*\()\s*$')
+_REGEX_PRECEDER = set('(,=:[!&|?{};+-*%<>~^')
+_REGEX_KEYWORDS = ('return', 'typeof', 'case', 'do', 'else', 'in', 'of', 'void', 'yield', 'await', 'delete')
+
+
+def _regex_allowed(out):
+    """A ``/`` starts a regular expression literal when no operand precedes it."""
+    head = ''.join(out[-40:]).rstrip()
+    if not head:
+        return True
+    if head[-1] in _REGEX_PRECEDER:
+        return True
+    return any(head.endswith(word) and (len(head) == len(word) or not (head[-len(word) - 1].isalnum()
+                                                                         or head[-len(word) - 1] in '_$'))
+               for word in _REGEX_KEYWORDS)
+
+
+def _js_code_view(text):
+    """Return ``text`` with comments blanked and non-specifier literal contents masked.
+
+    Positions and line breaks are preserved. String literals keep their content only
+    where a module specifier is expected (after ``from``, ``import``, ``require(`` or
+    ``import(``), so import-like text inside comments, ordinary strings, template text
+    and regular expression literals no longer produces edges or dynamic-import
+    boundaries. Code inside template substitutions (``${...}``) is scanned as code.
+    """
+    out, i, n = [], 0, len(text)
+    braces = []  # per open template substitution: depth of ``{`` opened inside it
+
+    def blank(chunk):
+        out.append(''.join('\n' if ch == '\n' else ' ' for ch in chunk))
+
+    def template(start):
+        """Mask template text from ``start`` until the closing backtick or a ``${``."""
+        j = start
+        while j < n:
+            ch = text[j]
+            if ch == '\\':
+                j += 2
+                continue
+            if ch == '`':
+                blank(text[start:j])
+                out.append('`')
+                return j + 1, False
+            if ch == '$' and j + 1 < n and text[j + 1] == '{':
+                blank(text[start:j])
+                out.append('${')
+                return j + 2, True
+            j += 1
+        blank(text[start:])
+        return n, False
+
+    while i < n:
+        ch = text[i]
+        nxt = text[i + 1] if i + 1 < n else ''
+        if ch == '/' and nxt == '/':
+            end = text.find('\n', i)
+            end = n if end < 0 else end
+            blank(text[i:end])
+            i = end
+        elif ch == '/' and nxt == '*':
+            end = text.find('*/', i + 2)
+            end = n if end < 0 else end + 2
+            blank(text[i:end])
+            i = end
+        elif ch in '\'"':
+            j = i + 1
+            while j < n and text[j] != ch and text[j] != '\n':
+                j += 2 if text[j] == '\\' else 1
+            body = text[i + 1:min(j, n)]
+            keep = _SPECIFIER_CONTEXT.search(''.join(out[-80:])) is not None
+            out.append(ch)
+            out.append(body if keep else 'x' * len(body))
+            if j < n and text[j] == ch:
+                out.append(ch)
+                j += 1
+            i = j
+        elif ch == '`':
+            out.append('`')
+            i, opened = template(i + 1)
+            if opened:
+                braces.append(0)
+        elif ch == '/' and _regex_allowed(out):
+            j, in_class = i + 1, False
+            while j < n and text[j] != '\n':
+                if text[j] == '\\':
+                    j += 2
+                    continue
+                if text[j] == '[':
+                    in_class = True
+                elif text[j] == ']':
+                    in_class = False
+                elif text[j] == '/' and not in_class:
+                    break
+                j += 1
+            if j < n and text[j] == '/':
+                out.append('/' + 'x' * (j - i - 1) + '/')
+                i = j + 1
+            else:  # not a closed literal on this line: treat as an operator
+                out.append(ch)
+                i += 1
+        elif braces and ch == '{':
+            braces[-1] += 1
+            out.append(ch)
+            i += 1
+        elif braces and ch == '}':
+            if braces[-1]:
+                braces[-1] -= 1
+                out.append(ch)
+                i += 1
+            else:
+                braces.pop()
+                out.append('}')
+                i, opened = template(i + 1)
+                if opened:
+                    braces.append(0)
+        else:
+            out.append(ch)
+            i += 1
+    return ''.join(out)
+
+
 def _js_edges(path, text, paths):
     edges, boundaries = set(), []
+    text = _js_code_view(text)
     for pattern in (_JS_IMPORT, _JS_REQUIRE, _JS_LITERAL_IMPORT):
         for match in pattern.finditer(text):
             specifier = match.group(2)

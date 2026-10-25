@@ -64,6 +64,73 @@ def test_editing_only_the_cached_result_is_rejected(tmp_path):
     assert cache.get(secret)['value'] == ['SECRET_KEY']
 
 
+def _forge(path, value):
+    """Rewrite a whole entry consistently, as a writer of the cache directory could."""
+    from drift_gate.adapters.analysis_cache import _result_digest
+    from drift_gate.core.models.input_manifest import canonical_bytes
+    entry = json.loads(path.read_bytes())
+    entry['value'] = value
+    entry['result_sha256'] = _result_digest(entry['status'], value)
+    path.write_bytes(canonical_bytes(entry))
+
+
+def test_without_a_key_a_consistent_forgery_is_accepted(tmp_path):
+    # Documented limit kept for the keyless mode: the same-file digests cannot stop a full rewrite.
+    cache = AnalysisCache(tmp_path)
+    cache.put(inputs(), status='complete', value=['SECRET_KEY'])
+    _forge(next((tmp_path / 'entries').rglob('*.json')), [])
+    assert cache.get(inputs())['value'] == []
+    assert cache.stats()['integrity'] == 'detects-corruption-and-partial-edits-not-forgery'
+
+
+def test_with_a_key_a_consistent_forgery_is_rejected_and_recomputed(tmp_path):
+    key = ('ci', b'k' * 32)
+    cache = AnalysisCache(tmp_path, auth=key)
+    cache.put(inputs(), status='complete', value=['SECRET_KEY'])
+    assert cache.get(inputs())['value'] == ['SECRET_KEY']
+    path = next((tmp_path / 'entries').rglob('*.json'))
+    _forge(path, [])  # MAC left as written for the old value
+    assert cache.get(inputs()) is None and cache.rejected == 1
+    entry = json.loads(path.read_bytes())
+    del entry['mac']  # dropping the MAC does not help either
+    from drift_gate.core.models.input_manifest import canonical_bytes
+    path.write_bytes(canonical_bytes(entry))
+    assert cache.get(inputs()) is None and cache.rejected == 2
+    cache.put(inputs(), status='complete', value=['SECRET_KEY'])  # repaired with a valid MAC
+    assert cache.get(inputs())['value'] == ['SECRET_KEY']
+    assert cache.stats()['integrity'] == 'keyed-hmac-rejects-entries-without-the-key'
+
+
+def test_keyed_cache_rejects_unkeyed_and_other_key_entries(tmp_path):
+    AnalysisCache(tmp_path).put(inputs(), status='complete', value=['A'])
+    assert AnalysisCache(tmp_path, auth=('ci', b'k' * 32)).get(inputs()) is None
+    AnalysisCache(tmp_path, auth=('ci', b'k' * 32)).put(inputs(), status='complete', value=['A'])
+    assert AnalysisCache(tmp_path, auth=('ci', b'k' * 32)).get(inputs())['value'] == ['A']
+    assert AnalysisCache(tmp_path, auth=('ci', b'j' * 32)).get(inputs()) is None
+    assert AnalysisCache(tmp_path, auth=('other', b'k' * 32)).get(inputs()) is None
+
+
+@pytest.mark.parametrize('value, message', [
+    ('no-separator', 'key_id:base64-key'),
+    ('bad id:' + 'a' * 44, 'key_id:base64-key'),
+    ('ci:not base64!', 'base64'),
+    ('ci:' + 'YWJj', 'at least 32 bytes'),
+])
+def test_cache_key_environment_is_validated(value, message):
+    from drift_gate.adapters.analysis_cache import CacheError, cache_key_from_env
+    with pytest.raises(CacheError, match=message):
+        cache_key_from_env({'DRIFT_GATE_CACHE_KEY': value})
+
+
+def test_cache_key_environment_unset_and_valid():
+    import base64
+
+    from drift_gate.adapters.analysis_cache import cache_key_from_env
+    assert cache_key_from_env({}) is None
+    encoded = base64.b64encode(b'k' * 32).decode()
+    assert cache_key_from_env({'DRIFT_GATE_CACHE_KEY': f'ci:{encoded}'}) == ('ci', b'k' * 32)
+
+
 def test_scope_analysis_reuses_cached_facts_with_identical_results(tmp_path):
     from drift_gate.tests.test_scope_analysis import commit, route, run
     from drift_gate.tests.test_scope_analysis import repo as repo_fixture
@@ -76,6 +143,22 @@ def test_scope_analysis_reuses_cached_facts_with_identical_results(tmp_path):
     assert cold['cache']['stored'] > 0 and warm['cache']['hits'] > 0 and warm['cache']['stored'] == 0
     for key in ('services', 'no_delta_certificates', 'dependency'):
         assert cold[key] == warm[key] == plain[key]
+
+
+def test_scope_analysis_uses_the_cache_key_from_the_environment(tmp_path, monkeypatch):
+    import base64
+
+    from drift_gate.tests.test_scope_analysis import commit, route, run
+    from drift_gate.tests.test_scope_analysis import repo as repo_fixture
+    (tmp_path / 'r').mkdir()
+    root, base = repo_fixture.__wrapped__(tmp_path / 'r')
+    head = commit(root, {'services/billing/api.py': route('/v2')}, 'route change')
+    monkeypatch.setenv('DRIFT_GATE_CACHE_KEY', 'ci:' + base64.b64encode(b'k' * 32).decode())
+    cold = run(root, base, head, cache_dir=tmp_path / 'cache')
+    assert cold['cache']['integrity'] == 'keyed-hmac-rejects-entries-without-the-key'
+    entries = list((tmp_path / 'cache' / 'entries').rglob('*.json'))
+    assert entries and all(json.loads(p.read_bytes())['mac']['key_id'] == 'ci' for p in entries)
+    assert run(root, base, head, cache_dir=tmp_path / 'cache')['cache']['hits'] > 0
 
 
 # -- organization service ---------------------------------------------------------------

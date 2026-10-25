@@ -220,8 +220,8 @@ def analyze_scope(*, root, base, head, trusted_policy_ref, trusted_policy_sha256
         sides = {}
         cache = None
         if cache_dir is not None:
-            from drift_gate.adapters.analysis_cache import AnalysisCache
-            cache = AnalysisCache(cache_dir)
+            from drift_gate.adapters.analysis_cache import AnalysisCache, cache_key_from_env
+            cache = AnalysisCache(cache_dir, auth=cache_key_from_env())
         worker_failures, limits_unapplied = {}, set()
         for side, sources, graph in (('before', before_src, g_before), ('after', after_src, g_after)):
             if isolated:

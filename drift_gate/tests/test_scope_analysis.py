@@ -216,6 +216,44 @@ def test_js_import_forms_are_edges_or_open_boundaries(app, affected, open_kinds)
     assert scope['closed'] == (not open_kinds)
 
 
+@pytest.mark.parametrize('app', [
+    "// const dep = require('./dep.js');\nexport const x = 1;\n",
+    "/* import x from './dep.js'; */\nexport const x = 1;\n",
+    'export const help = "use require(\'./dep.js\') to load";\n',
+    "export const hint = 'import(\"./dep.js\")';\n",
+    'export const doc = `import x from "./dep.js"`;\n',
+    "export const re = /require\\('\\.\\/dep\\.js'\\)/;\n",
+])
+def test_js_import_text_in_comments_strings_and_regex_is_not_an_edge(app):
+    # Limit noted on 2026-10-08: the regex profile could not tell code from comments and strings.
+    graph = build_graph({'app.js': app, 'dep.js': 'export const x = 1;\n'})
+    assert ('app.js', 'dep.js') not in graph.edges
+    assert not [b for b in graph.boundaries if b.module == 'app.js']
+
+
+@pytest.mark.parametrize('app', [
+    "// require(name) is a comment\nexport const x = 1;\n",
+    "const label = 'require(moduleName)';\n",
+    '/* import(target) */ export const x = 1;\n',
+])
+def test_js_dynamic_call_text_outside_code_is_not_an_open_boundary(app):
+    graph = build_graph({'app.js': app})
+    assert not [b for b in graph.boundaries if b.kind == 'dynamic-import']
+
+
+@pytest.mark.parametrize('app, edge, dynamic', [
+    ('const label = "x"; const dep = require("./dep.js"); // require("./other.js")\n', True, False),
+    ('export const run = (n) => `${require("./dep.js").x + n}`;\n', True, False),
+    ("export const load = (n) => `${require(n)}`;\n", False, True),
+    ('const a = 4 / 2; const dep = require("./dep.js"); const b = a / 2;\n', True, False),
+])
+def test_js_code_around_masked_literals_is_still_scanned(app, edge, dynamic):
+    graph = build_graph({'app.js': app, 'dep.js': 'export const x = 1;\n', 'other.js': ''})
+    assert (('app.js', 'dep.js') in graph.edges) == edge
+    assert ('app.js', 'other.js') not in graph.edges
+    assert any(b.kind == 'dynamic-import' for b in graph.boundaries) == dynamic
+
+
 def test_byte_budget_is_charged_before_object_contents_are_loaded(repo, monkeypatch):
     from drift_gate.adapters import scope_analysis
     root, base = repo

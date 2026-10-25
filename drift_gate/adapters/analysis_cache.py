@@ -11,14 +11,21 @@ read: the stored key inputs must hash to the entry name and the stored result
 must hash to the entry's ``result_sha256``. A truncated entry, or one whose
 result alone was edited, is rejected and recomputed.
 
-Trust boundary: both digests sit in the same file, so anyone who can rewrite a
-whole entry can forge a consistent one. The check detects corruption and
-partial edits, not a writer with access to the cache directory. Cached facts
-are an optimisation for trusted local runs; a merge decision must not rest on a
-cache an untrusted party could write (the trusted-engine path never uses one).
+Trust boundary: without a key both digests sit in the same file, so anyone who
+can rewrite a whole entry can forge a consistent one; the check then detects
+corruption and partial edits only. With ``DRIFT_GATE_CACHE_KEY``
+("key_id:base64-key", at least 32 bytes, held outside the cache directory) every
+entry carries an HMAC-SHA256 over its canonical content, and entries without a
+valid MAC under that key are rejected and recomputed. A writer of the cache
+directory then cannot forge an entry without the key. The key is shared-secret
+authentication, not a statement about who produced the entry. Cached facts stay
+an optimisation; the trusted-engine path never uses a cache.
 """
+import base64
+import hmac
 import json
 import os
+import re
 import tempfile
 from hashlib import sha256
 from pathlib import Path
@@ -27,10 +34,33 @@ from drift_gate.core.models.input_manifest import canonical_bytes
 
 SCHEMA = 'analysis-cache-entry-v2'  # v2 adds result_sha256; v1 entries are rejected and recomputed
 STORABLE = ('complete', 'unsupported')
+KEY_ENV = 'DRIFT_GATE_CACHE_KEY'  # "key_id:base64-key"
+_KEY_ID = re.compile('[A-Za-z0-9._-]{1,64}')
 
 
 class CacheError(ValueError):
     """Unusable cache configuration (never raised for a bad entry: that is a miss)."""
+
+
+def cache_key_from_env(environ=None):
+    """Return ``(key_id, key)`` from ``DRIFT_GATE_CACHE_KEY`` or None when unset."""
+    raw = (environ if environ is not None else os.environ).get(KEY_ENV)
+    if not raw:
+        return None
+    key_id, _, encoded = raw.partition(':')
+    if not _KEY_ID.fullmatch(key_id) or not encoded:
+        raise CacheError(f'{KEY_ENV} must be key_id:base64-key')
+    try:
+        key = base64.b64decode(encoded, validate=True)
+    except (ValueError, TypeError) as exc:
+        raise CacheError(f'{KEY_ENV} key must be base64') from exc
+    if len(key) < 32:
+        raise CacheError(f'{KEY_ENV} key must be at least 32 bytes')
+    return key_id, key
+
+
+def _mac(key, body):
+    return hmac.new(key, canonical_bytes(body), sha256).hexdigest()
 
 
 def engine_digest():
@@ -62,29 +92,38 @@ def _result_digest(status, value):
     return sha256(canonical_bytes({'status': status, 'value': value})).hexdigest()
 
 
-def _entry_ok(entry, raw, inputs, key):
-    return (isinstance(entry, dict) and entry.get('schema') == SCHEMA and canonical_bytes(entry) == raw
+def _entry_ok(entry, raw, inputs, key, auth=None):
+    if not (isinstance(entry, dict) and entry.get('schema') == SCHEMA and canonical_bytes(entry) == raw
             and entry.get('key_inputs') == inputs and cache_key(entry['key_inputs']) == key
             and entry.get('status') in STORABLE
-            and entry.get('result_sha256') == _result_digest(entry.get('status'), entry.get('value')))
+            and entry.get('result_sha256') == _result_digest(entry.get('status'), entry.get('value'))):
+        return False
+    if auth is None:
+        return True
+    key_id, secret = auth
+    mac = entry.get('mac')
+    body = {name: value for name, value in entry.items() if name != 'mac'}
+    return (isinstance(mac, dict) and mac.get('key_id') == key_id and isinstance(mac.get('hmac_sha256'), str)
+            and hmac.compare_digest(mac['hmac_sha256'], _mac(secret, body)))
 
 
 class AnalysisCache:
-    def __init__(self, root):
+    def __init__(self, root, auth=None):
+        """``auth``: ``(key_id, key)`` to require keyed entries; see :func:`cache_key_from_env`."""
         self.root = Path(root).absolute()
+        self.auth = auth
         self.hits = self.misses = self.rejected = self.stored = self.skipped = 0
 
     def _path(self, key):
         return self.root / 'entries' / key[:2] / f'{key}.json'
 
-    @staticmethod
-    def _valid(path, inputs, key):
+    def _valid(self, path, inputs, key):
         try:
             raw = path.read_bytes()
             entry = json.loads(raw)
         except (OSError, ValueError):
             return False
-        return _entry_ok(entry, raw, inputs, key)
+        return _entry_ok(entry, raw, inputs, key, self.auth)
 
     def get(self, inputs):
         key = cache_key(inputs)
@@ -92,7 +131,7 @@ class AnalysisCache:
         try:
             raw = path.read_bytes()
             entry = json.loads(raw)
-            valid = _entry_ok(entry, raw, inputs, key)
+            valid = _entry_ok(entry, raw, inputs, key, self.auth)
         except (OSError, ValueError):
             valid = False if path.exists() else None
         if valid is None:
@@ -112,6 +151,8 @@ class AnalysisCache:
         key = cache_key(inputs)
         entry = {'schema': SCHEMA, 'key_inputs': inputs, 'status': status, 'value': value,
                  'result_sha256': _result_digest(status, value)}
+        if self.auth is not None:
+            entry['mac'] = {'key_id': self.auth[0], 'hmac_sha256': _mac(self.auth[1], entry)}
         raw = canonical_bytes(entry)
         target = self._path(key)
         target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -137,6 +178,7 @@ class AnalysisCache:
 
     def stats(self):
         return {'hits': self.hits, 'misses': self.misses, 'rejected_entries': self.rejected,
-                'integrity': 'detects-corruption-and-partial-edits-not-forgery',
+                'integrity': ('keyed-hmac-rejects-entries-without-the-key' if self.auth is not None
+                              else 'detects-corruption-and-partial-edits-not-forgery'),
                 'stored': self.stored, 'not_stored_transient_or_incomplete': self.skipped,
                 'root': str(self.root)}
