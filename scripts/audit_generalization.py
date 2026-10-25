@@ -51,7 +51,7 @@ def main():
         row = {key: case[key] for key in ("id", "scope", "expected", "reason")}
         try:
             files = enrich_semantic_signals([
-                ChangedFile.from_dict(item) for item in case["changed_files"]
+                ChangedFile.from_legacy_fixture(item) for item in case["changed_files"]
             ])
             result = run(files, policy=Policy.from_dict(suite["policies"][case["policy"]]))
             row.update(actual=result.result, report=result.to_dict())

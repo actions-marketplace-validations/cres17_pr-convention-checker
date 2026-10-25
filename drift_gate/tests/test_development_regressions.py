@@ -23,7 +23,7 @@ ENV_SUITE = json.loads((ROOT / "docs/assessment/env-contract-v1.json").read_text
 
 @pytest.mark.parametrize("case", ENV_SUITE["cases"], ids=lambda c: c["id"])
 def test_frozen_environment_content_cases(case):
-    result = run([ChangedFile.from_dict(f) for f in case["changed_files"]],
+    result = run([ChangedFile.from_legacy_fixture(f) for f in case["changed_files"]],
                  policy=Policy.from_dict(ENV_SUITE["policy"]))
     assert result.result == case["expected"]
 

@@ -682,7 +682,7 @@ def _evaluate_case(
     data = json.loads(path.read_text(encoding="utf-8"))
     if strip_intensity_thresholds or engine == "path-only":
         data = _strip_intensity_thresholds(data)
-    changed_files = [ChangedFile.from_dict(f) for f in data["changed_files"]]
+    changed_files = [ChangedFile.from_dict(f) for f in data["changed_files"]]  # fixtures carry source fields only
     if engine in {"path-only", "patch-aware"}:
         changed_files = [ChangedFile.from_source(f.source) for f in changed_files]
     elif engine in {"semantic-aware", "llm-enriched"}:

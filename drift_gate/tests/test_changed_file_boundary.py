@@ -7,14 +7,12 @@ PACKAGE = Path(__file__).resolve().parents[1]
 FACTS = {name for group in FACT_FIELDS.values() for name in group}
 
 # Only the analysis modules may fill derived fields by keyword.
-# changed_file.py is listed until from_dict stops accepting derived fields.
 ALLOWED = {
     "adapters/ast/analyzer.py",
     "adapters/ast/express_routes.py",
     "adapters/docs/content.py",
     "adapters/removed_key_usage.py",
     "core/evaluation/evaluator.py",
-    "core/models/changed_file.py",
 }
 
 

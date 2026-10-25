@@ -27,9 +27,7 @@ CASES = json.loads((Path(__file__).with_name('contracts') / 'logical-rereview.js
 def test_reproduced_adversarial_contract(case):
     files = []
     for data in case['files']:
-        file = ChangedFile.from_dict(data)
-        file.before_source, file.after_source = data['before_source'], data['after_source']
-        files.append(file)
+        files.append(ChangedFile.from_legacy_fixture(data))
     result = run(files, policy=load_policy_from_dict(case['policy'])).to_dict()
     assert {'gate': result['result'], 'decision': result['rule_decisions'][0]['decision'],
             'verification': result['verification'], 'violations': len(result['violations'])} == case['expected']
