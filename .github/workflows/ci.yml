@@ -18,6 +18,21 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+      - name: Fetch the exact comparison base after history rewrites
+        env:
+          COMPARISON_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        shell: bash
+        run: |
+          # A force push can remove event.before from the fetched branch ancestry.
+          # Fetch that exact object; never substitute a different comparison base.
+          if [[ ! "$COMPARISON_BASE" =~ ^[0-9a-f]{40}$ ]] || [[ "$COMPARISON_BASE" =~ ^0+$ ]]; then
+            echo "::error::A nonzero comparison commit is required"
+            exit 1
+          fi
+          if ! git cat-file -e "$COMPARISON_BASE^{commit}" 2>/dev/null; then
+            git fetch --no-tags origin "$COMPARISON_BASE"
+          fi
+          git cat-file -e "$COMPARISON_BASE^{commit}"
       - uses: actions/setup-python@7f4fc3e22c37d6ff65e88745f38bd3157c663f7c # v4
         with:
           python-version: '3.11'
@@ -113,6 +128,22 @@ jobs:
           fetch-depth: 0
           path: subject
           persist-credentials: false
+      - name: Fetch the exact comparison base after history rewrites
+        env:
+          COMPARISON_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        working-directory: subject
+        shell: bash
+        run: |
+          # A force push can remove event.before from the fetched branch ancestry.
+          # Fetch that exact object; never substitute a different comparison base.
+          if [[ ! "$COMPARISON_BASE" =~ ^[0-9a-f]{40}$ ]] || [[ "$COMPARISON_BASE" =~ ^0+$ ]]; then
+            echo "::error::A nonzero comparison commit is required"
+            exit 1
+          fi
+          if ! git cat-file -e "$COMPARISON_BASE^{commit}" 2>/dev/null; then
+            git fetch --no-tags origin "$COMPARISON_BASE"
+          fi
+          git cat-file -e "$COMPARISON_BASE^{commit}"
       - uses: actions/setup-python@7f4fc3e22c37d6ff65e88745f38bd3157c663f7c # v4
         with:
           python-version: '3.11'
