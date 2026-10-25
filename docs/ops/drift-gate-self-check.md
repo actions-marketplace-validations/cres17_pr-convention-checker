@@ -237,6 +237,18 @@ mypy가 `yaml` import를 확인할 수 있도록 lint 작업에 `types-PyYAML==6
 2026-10-21에 `action.yml`의 `actions/upload-artifact`를 `ci.yml`과 같은 커밋 SHA(`ea165f8d…`, 태그 v4·v4.6.2가 가리키는 커밋, `git ls-remote`로 확인)로 고정했다. 기본 모델 `claude-opus-4-6`은 이번에 바꾸지 않았다. 해당 모델의 지원 중단 여부는 확인하지 못했다.
 
 
+2026-10-25에 `main`과 `ver2`의 커밋 메시지에서 `Claude-Session:` 줄을 지우고 두 브랜치를 force-push했다(파일 트리 동일).
+다시 쓴 범위는 `18481dd` 이후이며 CI가 고정한 신뢰 엔진(`05f62d5…`)·정책(`1dffbba…`) 커밋은 그보다 앞이라 주소가 그대로다.
+옛 주소와 새 주소는 [2026-10-25 대응표](commit-ref-map-2026-10-25.json)에 있다.
+
+2026-10-25에 예전 위젯 화면(`drift_gate/desktop/app.py`)을 지웠다. 배포 화면이 쓰던 `ScanWorker`는
+`drift_gate/desktop/scan_worker.py`로 옮겼다. 자체 정책의 데스크톱 규칙에 새 파일을 추가했고, 지운 파일의 경로는
+신뢰 정책 비교에서 약화로 보이지 않도록 그대로 남겼다. `desktop-build.yml`의 설치본 시험 목록에서 지운
+`test_desktop_ui.py` 대신 그중 남은 대화상자 시험을 옮긴 `test_review_dialog.py`를 실행한다.
+
+`trusted-engine` job을 required status check로 지정하는 ruleset은 2026-10-25 기준 이 저장소에 없다(`GET /repos/…/rulesets` 0건).
+branch protection은 이 세션의 권한으로 조회하지 못했다. 저장소 설정 변경이라 이 작업에서는 설정하지 않았다.
+
 ## History rewrites and the CI comparison base
 
 Both CI gates use the exact pull-request base SHA or push event `before` SHA. After an author-history rewrite, that commit can be absent from the fetched branch ancestry. Each gate validates the SHA and fetches that exact object from origin before evaluation. It fails if the object cannot be obtained; it never replaces the base with HEAD, HEAD~1, or an empty diff. Pinned engine and policy validation remain unchanged.

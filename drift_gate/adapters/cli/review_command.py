@@ -17,8 +17,15 @@ from drift_gate.reporters.html import HtmlReporter
 from drift_gate.reporters.markdown import MarkdownReporter
 
 
+REVIEW_DEPRECATION = (
+    "경고: `drift-gate review`는 문서-코드 정합성 검사 범위 밖의 코드 점검 명령이라 다음 버전에서 제거됩니다. "
+    "이번 버전의 출력과 종료 코드는 바뀌지 않습니다."
+)
+
+
 def _run_review(args) -> None:
     from drift_gate.adapters.git.client import repository_root
+    print(REVIEW_DEPRECATION, file=sys.stderr)
     from drift_gate.core.review.heuristics import (
         SEVERITY_ORDER,
         find_reporter_field_gaps,

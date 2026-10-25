@@ -299,7 +299,7 @@ def test_scan_reports_which_progress_evidence_it_touches(tmp_path, monkeypatch):
 def test_missing_policy_is_previewed_and_created_only_on_request(tmp_path):
     import subprocess
 
-    from drift_gate.desktop.app import ScanWorker
+    from drift_gate.desktop.scan_worker import ScanWorker
     QApplication.instance() or QApplication([])
     repo = tmp_path / 'fresh'
     (repo / 'src/routes').mkdir(parents=True)

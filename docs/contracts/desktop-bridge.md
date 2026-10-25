@@ -1,5 +1,11 @@
 # 데스크톱 편집·이벤트 계약
 
+## 예전 위젯 화면 제거 (2026-10-25)
+
+배포 진입점은 `drift_gate.desktop.web_app:main` 하나다. 쓰지 않던 위젯 화면(`desktop/app.py`의 `DesktopWindow`)과 그 시험을
+지웠고, 배포 화면이 쓰던 `ScanWorker`는 `desktop/scan_worker.py`로 옮겼다. signal 이름·인자와 bridge event는 바뀌지 않는다.
+`ReviewDialog` 시험은 `test_review_dialog.py`로 옮겼다.
+
 ## Qt signal 연결과 종료 (2026-10-10)
 
 Desktop 코드는 signal에 `self`를 잡는 lambda를 연결하지 않고 bound method를 연결한다. PySide6 6.12.0에서 자식 위젯의 signal을

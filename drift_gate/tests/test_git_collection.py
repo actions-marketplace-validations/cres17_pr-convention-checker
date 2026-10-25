@@ -120,7 +120,10 @@ def test_review_uses_collected_patches_and_rejects_unreadable_source(tmp_path, m
     with pytest.raises(SystemExit) as done:
         run_cli(['review', '--base', 'HEAD', '--format', 'json'])
     assert done.value.code == 0
-    assert json.loads(capsys.readouterr().out)['review']['files_reviewed'] == ['code.py']
+    captured = capsys.readouterr()
+    assert json.loads(captured.out)['review']['files_reviewed'] == ['code.py']
+    # Decision 2026-10-21 #4: one deprecation release on stderr only; stdout JSON and exit code are unchanged.
+    assert '다음 버전에서 제거' in captured.err
     original_read = Path.read_text
     def unreadable(path, *args, **kwargs):
         if path.name == 'code.py': raise PermissionError('fixture')

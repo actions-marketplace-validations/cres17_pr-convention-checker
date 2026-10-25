@@ -255,7 +255,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     review = subparsers.add_parser(
         "review",
-        help="Deterministic code quality review (heuristic, no LLM required)",
+        help="[deprecated: removed in the next version] Deterministic code quality review (heuristic, no LLM required)",
     )
     review.add_argument(
         "--base",

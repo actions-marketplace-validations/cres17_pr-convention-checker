@@ -25,7 +25,7 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox
 
 from drift_gate.adapters.report_naming import default_report_path, detect_project
-from drift_gate.desktop.app import ScanWorker
+from drift_gate.desktop.scan_worker import ScanWorker
 from drift_gate.desktop.policy_setup import (
     create_policy,
     preview_policy,

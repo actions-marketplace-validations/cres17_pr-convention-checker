@@ -76,7 +76,7 @@ jobs:
         run: >
           python -X faulthandler -m pytest -q -o faulthandler_timeout=120 --junitxml build/desktop-pytest.xml
           drift_gate/tests/test_desktop_service.py
-          drift_gate/tests/test_desktop_ui.py
+          drift_gate/tests/test_review_dialog.py
           drift_gate/tests/test_qt_teardown.py
           drift_gate/tests/test_desktop_web.py
           drift_gate/tests/test_git_collection.py
