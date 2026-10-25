@@ -223,3 +223,17 @@ drift-gate demo
 CI는 Ubuntu·Windows·macOS와 Python 3.10·3.11·3.12의 9개 조합에서 테스트합니다. 정적 검사, 합성 평가셋, 파서 해시 확인은 별도 작업으로 실행합니다. 데스크톱 배포는 PyInstaller로 Windows와 macOS 패키지를 만듭니다.
 
 `demo`는 합성 21개 사례에서 경로 기준 검사와 patch 분석을 비교합니다. 실제 조직의 PR 성능을 측정한 수치가 아니며, 평가 원자료와 검증 기록은 [docs/assessment](docs/assessment)에 있습니다.
+
+### 실제 PR 파일럿 (2026-10-25)
+
+개발에 쓰지 않은 공개 저장소 3개(open-webui, langflow, litellm)의 병합 PR 30개를 사전 등록한 절차로 평가했습니다. 정책·표본·사람 label·엔진 커밋을 실행 전에 고정했습니다.
+
+| 항목 | 결과(사람 label 기준) |
+|---|---|
+| 규칙 단위 확정 판정 오류 | 0/36 (나머지 4개는 엔진이 판단 보류) |
+| 오차단(통과해야 할 PR을 fail) | 0/30 (Wilson 95% 0–0.114) |
+| 보류(warn) | 4/30. 사람도 warn 1, 사람 pass 3 |
+| 엔진 pass·사람 warn | 1/30 (규칙 범위 밖의 변경) |
+| 미탐 | 측정 불가. 사람 label에 위반·fail이 없음 |
+
+표본이 작고 검토자가 1명이며, 위반을 잡는 능력은 이 자료로 말할 수 없습니다. 사례별 원인과 산출물 해시는 [실행 결과](docs/assessment/pr-pilot-2026-10-21/results/record.md)에 있습니다.
