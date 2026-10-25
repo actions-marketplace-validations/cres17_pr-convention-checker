@@ -40,6 +40,8 @@ FastAPI 라우트를 추가하고 `docs/openapi.yaml`은 수정하지 않은 예
 
 ## 검사 과정
 
+<p><img src="https://img.shields.io/badge/MAIN%20FEATURE-586AD3?style=flat-square" alt="MAIN 기능" height="20"></p>
+
 ![Drift Gate 구성](docs/assets/readme/architecture.svg)
 
 로컬에서는 Git diff를 읽고, Action에서는 GitHub API로 PR의 변경 파일과 patch를 가져옵니다. Tree-sitter가 코드 변경에서 라우트, 환경변수 접근과 공개 선언을 추출하면 정책 엔진이 필요한 문서의 변경 여부를 평가합니다.
@@ -57,6 +59,8 @@ FastAPI 라우트를 추가하고 `docs/openapi.yaml`은 수정하지 않은 예
 규칙의 `when.any_changed`에 해당하는 코드가 바뀌면 `require.groups`를 평가합니다. 필요한 묶음을 모두 만족해야 규칙이 통과합니다. 문서·테스트만 바뀌었고 명시적인 트리거도 없으면 평가를 생략할 수 있습니다.
 
 ## 판정
+
+<p><img src="https://img.shields.io/badge/MAIN%20FEATURE-586AD3?style=flat-square" alt="MAIN 기능" height="20"></p>
 
 최종 결과는 위반의 심각도와 게이트 설정으로 결정합니다. LLM은 이 판정에 참여하지 않습니다.
 
@@ -113,6 +117,8 @@ rules:
 
 ## GitHub Action
 
+<p><img src="https://img.shields.io/badge/SUB%20FEATURE-A5AFE7?style=flat-square" alt="SUB 기능" height="20"></p>
+
 루트의 `action.yml`은 composite action입니다. PR 이벤트에서 실행하면 변경과 정책을 조회하고 결과를 댓글 및 보고서로 남깁니다. 같은 마커의 댓글을 갱신하므로 실행할 때마다 요약 댓글을 추가하지 않습니다.
 
 | 입력 | 기본값 | 용도 |
@@ -127,6 +133,8 @@ rules:
 출력은 `result`, `blocker_count`, `major_count`, `violation_count`, `policy_origin`, `comment_url`입니다. `result`는 `pass / warn / fail / skip` 중 하나입니다.
 
 ## 코드 구성
+
+<p><img src="https://img.shields.io/badge/SUB%20FEATURE-A5AFE7?style=flat-square" alt="SUB 기능" height="20"></p>
 
 `drift_gate/core`에는 외부 I/O 없이 실행되는 정책 모델, 분류, 판정과 예외 검증을 둡니다. Git, GitHub, AST, CLI와 MCP 연결은 `adapters`가 맡고, 출력 형식은 `reporters`에서 처리합니다. 실행 환경이 달라도 같은 규칙 엔진을 사용하기 위한 구분입니다.
 
