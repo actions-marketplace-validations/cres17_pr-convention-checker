@@ -125,6 +125,8 @@ Set `min_change_intensity` in the `when:` clause of a rule.
 | 3 | `route-contract-change` | Route handler or schema changed |
 | 3 | `export-added` | New public export added |
 
+**Default `any` fires on comment-only edits.** A rule without `min_change_intensity` triggers when any matched file changes, including a change to a comment or docstring only. Add `min_change_intensity: impl-only` to skip comment-only changes. The default is kept on purpose: comment detection is a heuristic that has misclassified code lines before, and raising the default would silently loosen existing policies without the trusted-policy weakening check noticing (the policy file itself would not change). Most rules in the `drift-gate init` presets set an explicit level or a typed `trigger`; the first preset's `env-config-sync` does not, so it fires on any change to `.env*` or `config/**`.
+
 `docs-only` and `test-only` are change types (whole-PR classification), not intensity values; `min_change_intensity` rejects them. A file whose patch is missing, binary or too large is treated as the highest rank because the engine cannot prove the change is small; the rule decision is then `undetermined` rather than a confirmed violation.
 
 ### Example Usage
