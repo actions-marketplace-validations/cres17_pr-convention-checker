@@ -36,7 +36,7 @@ W10의 입력 검증은 이미 일부 구현됐지만 독립 정답 평가와는
 | [routes.py](../../drift_gate/core/evaluation/routes.py) | route 비교, 문서 요구, 자동 종류 선택 | profile discovery와 obligation planning 분리 | 의미 변경을 단순 리팩터링으로 보고하지 않음 |
 | [environment.py](../../drift_gate/core/evaluation/environment.py) | 키 집합·uncertain bool | 서비스 범위가 있는 부분 사실 | legacy 새 키 의무를 별도 버전으로 유지 |
 | [evaluator.py](../../drift_gate/core/evaluation/evaluator.py) | 적용성·그룹·relation·ignore | 계획된 의무 평가, waiver는 후처리 | parent/관계 source scope 계승 |
-| [ChangedFile](../../drift_gate/core/models/changed_file.py) | patch와 선택 snapshot·route 필드 | SourceArtifact와 FactBundle 분리 | 실제 교체 경계만 추상화 |
+| [ChangedFile](../../drift_gate/core/models/changed_file.py) | patch와 선택 snapshot·route 필드 | SourceArtifact와 FactBundle 분리 | 실제 교체 경계만 추상화. 2026-10-25 현재: 원본 입력은 `ChangedFileSource`로 분리했고(`SourceArtifact`는 매니페스트 타입이 쓰므로 이름을 바꿨다), 파생 필드는 `ChangedFile`에 남아 있다 |
 | [inspection.py](../../drift_gate/adapters/inspection.py) | 공통 enrichment·core 호출·metadata | 단계 실행 application | 진입점은 유지하고 단계 계약을 추가 |
 | [AnalysisSession](../../drift_gate/core/evaluation/analysis_session.py) | 실행별 bounded memo | 프로필·원문·문맥 결합 memo | 전역 캐시는 후속, 지금 도입하지 않음 |
 | [result.py](../../drift_gate/core/models/result.py) | 기존 결과 schema와 집계 | canonical IR 및 legacy projection | 기존 결과 필드 즉시 제거 금지 |
