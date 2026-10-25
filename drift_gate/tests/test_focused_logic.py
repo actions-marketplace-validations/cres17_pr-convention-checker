@@ -158,7 +158,8 @@ def partial_case():
                 {'name': 'missing', 'any_changed': ['docs/missing.md']}]}, 'severity': 'blocker'}]},
         'changed_files': [{'path': 'src/a.py', 'status': 'modified', 'patch': '@@\n-x=1\n+x=2\n',
                           'before_source': 'x=1\n', 'after_source': 'x=2\n'},
-                         {'path': 'docs/ok.md', 'status': 'modified', 'patch': '@@\n+updated\n', 'after_source': 'updated\n'}],
+                         {'path': 'docs/ok.md', 'status': 'modified', 'patch': '@@\n+updated\n', 'after_source': 'updated\n',
+                          'document_input_state': 'available', 'documented_env_keys': []}],
         'expected': {'gate': 'fail', 'rules': {'visible': {'decision': 'satisfied', 'support': 'supported'}}}}
 
 

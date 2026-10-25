@@ -77,7 +77,6 @@ def _validate_case(case):
         raise HoldoutError(f"case {case['case_id']}: changed_files must be a list")
     for data in case['changed_files']:
         _changed_file(data)  # unknown or malformed fields are rejected before anything is frozen
-        _check_documented_keys(case['case_id'], data)
     expected = case['expected']
     if not isinstance(expected, dict) or expected.get('gate') not in {'pass', 'warn', 'fail'} or not isinstance(expected.get('rules'), dict):
         raise HoldoutError(f"case {case['case_id']}: expected gate and rules are required")
@@ -85,6 +84,7 @@ def _validate_case(case):
         policy = load_policy_from_dict(case['policy'])
     except PolicyLoadError as exc:
         raise HoldoutError(f"case {case['case_id']}: invalid policy: {exc}") from exc
+    _check_derived_fields(case['case_id'], policy, case['changed_files'])
     missing = _missing_required_documents(policy, case['changed_files'])
     if missing:
         raise HoldoutError(
@@ -98,18 +98,46 @@ def _validate_case(case):
             raise HoldoutError(f"case {case['case_id']} rule {rule_id}: invalid expected decision/support")
 
 
-def _check_documented_keys(case_id, data):
-    """``documented_env_keys`` is a derived fact the engine trusts as given; it must match the carried text.
+# The engine fills these during inspection, so a frozen case may only leave them unset.
+ENGINE_FIELD_DEFAULTS = {
+    'semantic_signals': [], 'semantic_evidence': [], 'analysis_method': 'not-analyzed', 'analysis_reason': '',
+    'before_routes': None, 'after_routes': None, 'route_analysis_error': '',
+    # The usage stages run before inspection; holdout never runs them.
+    'env_key_usage': None, 'removed_env_key_candidates': None,
+}
+DOCUMENT_FIELD_DEFAULTS = {'documented_env_keys': None, 'document_input_state': '', 'document_json': None, 'document_error': ''}
 
-    A case could otherwise declare keys its document does not contain (decision 2026-10-21 #3).
+
+def _check_derived_fields(case_id, policy, changed_files):
+    """Each derived field must be what the product derives, never a supplied value (decision 2026-10-21 #3).
+
+    A document path's fields are recomputed from its carried text. A carried text of None (missing or unreadable)
+    is checked only for internal consistency: the file itself is not available to holdout.
     """
-    from drift_gate.core.evaluation.contracts import env_keys_in_document
-    keys = data.get('documented_env_keys')
-    if keys is None:
-        return
-    text = data.get('after_source')
-    if not isinstance(text, str) or not isinstance(keys, list) or sorted(env_keys_in_document(text)) != sorted(keys):
-        raise HoldoutError(f"case {case_id}: documented_env_keys of {data.get('path')} do not match its after_source")
+    from drift_gate.adapters.docs.content import UNAVAILABLE_ERROR, document_fields, document_paths, schema_document_paths
+    doc_paths = document_paths(policy, [data.get('path') for data in changed_files])
+    schema_paths = schema_document_paths(policy)
+    for data in changed_files:
+        path = data.get('path')
+        for name, default in ENGINE_FIELD_DEFAULTS.items():
+            if data.get(name, default) != default:
+                raise HoldoutError(f"case {case_id}: {name} of {path} is derived by the engine and must be left unset")
+        supplied = {name: data.get(name, default) for name, default in DOCUMENT_FIELD_DEFAULTS.items()}
+        if path not in doc_paths:
+            if supplied != DOCUMENT_FIELD_DEFAULTS:
+                raise HoldoutError(f"case {case_id}: {path} is not a document the policy reads; its document fields must be left unset")
+            continue
+        text = data.get('after_source')
+        if text is not None:
+            ok = supplied == document_fields(path, text, schema_paths)
+        elif supplied['document_input_state'] == 'missing':
+            ok = supplied == {'documented_env_keys': [], 'document_input_state': 'missing', 'document_json': None, 'document_error': ''}
+        else:
+            ok = supplied == {'documented_env_keys': None, 'document_input_state': 'unavailable',
+                              'document_json': None, 'document_error': UNAVAILABLE_ERROR}
+        if not ok:
+            raise HoldoutError(f"case {case_id}: document fields (documented_env_keys, document_input_state, document_json, "
+                               f"document_error) of {path} do not match what the product derives from its after_source")
 
 
 def _missing_required_documents(policy, changed_files):

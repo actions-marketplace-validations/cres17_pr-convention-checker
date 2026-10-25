@@ -18,7 +18,7 @@ def case(case_id, family, *, doc, expected_decision, gate, support='supported', 
     api = {'path': 'src/api.py', 'status': 'modified', 'patch': '@@\n-x\n+y\n',
            'before_source': source('/old'), 'after_source': 'def (:\n' if broken else source('/new')}
     docs = {'path': 'docs/api.md', 'status': 'modified', 'patch': '@@\n+x\n', 'after_source': doc,
-            'document_input_state': 'available'}
+            'document_input_state': 'available', 'documented_env_keys': []}
     return {'case_id': case_id, 'repository': repository or f'org/{family}', 'source_family': family,
             'policy': POLICY, 'changed_files': [api, docs], 'drift_ignores': [], 'evaluated_on': '2026-10-08',
             'expected': {'gate': gate, 'rules': {'api': {'decision': expected_decision, 'support': support,
@@ -233,3 +233,66 @@ def test_documented_env_keys_must_match_the_carried_document(keys, text):
 def test_documented_env_keys_matching_the_document_are_accepted():
     held, _ = h.split({'cases': [env_case(['A_KEY'])]}, seed='s', holdout_fraction=0.999)
     assert [c['case_id'] for c in held['cases']] == ['env1']
+
+
+@pytest.mark.parametrize('field, value', [
+    ('semantic_signals', ['env-key-added']), ('analysis_method', 'unavailable'), ('analysis_reason', 'x'),
+    ('before_routes', [['GET', '/x']]), ('route_analysis_error', 'x'),
+    ('env_key_usage', {'A_KEY': 'read'}), ('removed_env_key_candidates', ['A_KEY']),
+])
+def test_engine_derived_fields_must_be_left_unset(field, value):
+    item = env_case(['A_KEY'])
+    item['changed_files'][0][field] = value
+    with pytest.raises(h.HoldoutError, match=field):
+        h._validate_cases([item])
+
+
+def test_document_fields_of_a_non_document_file_must_be_unset():
+    item = env_case(['A_KEY'])
+    item['changed_files'][0]['documented_env_keys'] = ['NEW_KEY']
+    with pytest.raises(h.HoldoutError, match='not a document'):
+        h._validate_cases([item])
+
+
+@pytest.mark.parametrize('field, value', [
+    ('document_json', 'other: 1\n'), ('document_error', 'x'), ('document_input_state', 'unavailable'),
+])
+def test_recomputed_document_fields_must_match_the_text(field, value):
+    item = env_case(['A_KEY'])
+    item['changed_files'][1][field] = value
+    with pytest.raises(h.HoldoutError, match='document fields'):
+        h._validate_cases([item])
+
+
+def _unreadable(path):
+    raise OSError('denied')
+
+
+@pytest.mark.parametrize('reader', [lambda path: None, lambda path: 'A_KEY=1\n', _unreadable])
+def test_documents_attached_by_the_product_pass_the_derived_field_check(reader):
+    # A missing document reaches holdout as documented_env_keys [] with no text; the older check rejected it.
+    from dataclasses import asdict
+
+    from drift_gate.adapters.docs.content import attach_env_documents
+    from drift_gate.core.models.changed_file import ChangedFile
+    from drift_gate.core.models.changed_file_source import ChangedFileSource
+    from drift_gate.core.policy.loader import load_policy_from_dict
+    code = ChangedFile.from_source(ChangedFileSource(path='config.py', status='modified', patch='@@\n+x\n',
+                                                     after_source='x = 1\n'))
+    item = env_case([], None)
+    item['changed_files'] = [asdict(f) for f in attach_env_documents([code], load_policy_from_dict(ENV_POLICY), reader)]
+    h._validate_cases([item])
+
+
+def test_missing_and_unavailable_documents_are_checked_for_consistency():
+    missing = env_case([], after_source=None)
+    missing['changed_files'][1].update(status='deleted', document_input_state='missing', documented_env_keys=[])
+    h._validate_cases([missing])
+    unavailable = env_case(None, after_source=None)
+    unavailable['changed_files'][1].update(document_input_state='unavailable',
+                                           document_error='Document could not be read or safely decoded')
+    h._validate_cases([unavailable])
+    contradictory = env_case(None, after_source=None)
+    contradictory['changed_files'][1]['document_input_state'] = 'missing'
+    with pytest.raises(h.HoldoutError, match='document fields'):
+        h._validate_cases([contradictory])

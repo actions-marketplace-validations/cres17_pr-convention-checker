@@ -9,37 +9,59 @@ from drift_gate.core.models.changed_file import ChangedFile
 from drift_gate.core.models.changed_file_source import ChangedFileSource
 
 
-def attach_env_documents(files, policy, read_text):
-    paths = {path for rule in policy.rules for group in rule.require.groups
-             if group.content in {"env-keys", "api-schema", "auto-strict", "api-routes", "auto"}
-             for path in (group.any_changed or group.all_changed) if not any(c in path for c in '*?[]')}
-    schema_paths = {path for rule in policy.rules for group in rule.require.groups
-                    if group.content in {"api-schema", "api-routes", "auto-strict", "auto"}
-                    for path in (group.any_changed or group.all_changed)}
+UNAVAILABLE_ERROR = 'Document could not be read or safely decoded'
+ENV_DOCUMENT_CONTENT = {"env-keys", "api-schema", "auto-strict", "api-routes", "auto"}
+SCHEMA_CONTENT = {"api-schema", "api-routes", "auto-strict", "auto"}
+
+
+def schema_document_paths(policy):
+    return {path for rule in policy.rules for group in rule.require.groups
+            if group.content in SCHEMA_CONTENT
+            for path in (group.any_changed or group.all_changed)}
+
+
+def document_paths(policy, changed_paths):
+    """Paths whose document fields the product derives: explicit policy paths and changed files matching a schema glob."""
+    from drift_gate.utils.glob_matcher import matches_any
     # Glob groups inspect only already collected changed documents. No
     # unbounded repository traversal or remote listing is implied.
+    paths = {path for rule in policy.rules for group in rule.require.groups
+             if group.content in ENV_DOCUMENT_CONTENT
+             for path in (group.any_changed or group.all_changed) if not any(c in path for c in '*?[]')}
+    schema = list(schema_document_paths(policy))
+    paths.update(path for path in changed_paths if matches_any(path, schema))
+    return paths
+
+
+def document_fields(path, text, schema_paths):
+    """Derived document fields for text the caller already read; None means the document is missing."""
     from drift_gate.utils.glob_matcher import matches_any
-    for file in files:
-        if matches_any(file.path, list(schema_paths)):
-            paths.add(file.path)
+    normalized, error = None, ''
+    try:
+        state = "available" if text is not None else "missing"
+        keys = sorted(env_keys_in_document(text)) if text is not None else []
+        if text is not None and matches_any(path, list(schema_paths)) and path.lower().endswith(('.yaml', '.yml')):
+            normalized = normalize_openapi_yaml(text)
+    except (OSError, ValueError, RuntimeError):
+        keys, state, error = None, "unavailable", UNAVAILABLE_ERROR
+    return {"documented_env_keys": keys, "document_input_state": state,
+            "document_json": normalized, "document_error": error}
+
+
+def attach_env_documents(files, policy, read_text):
+    schema_paths = schema_document_paths(policy)
     by_path = {file.path: file for file in files}
-    for path in sorted(paths):
+    for path in sorted(document_paths(policy, [file.path for file in files])):
         file = by_path.get(path, ChangedFile.from_source(ChangedFileSource(path=path, status="unchanged")))
-        text, normalized, error = None, None, ''
         try:
             text = None if file.status == "deleted" else read_text(path)
-            state = "available" if text is not None else "missing"
-            keys = sorted(env_keys_in_document(text)) if text is not None else []
-            if text is not None and matches_any(path, list(schema_paths)) and path.lower().endswith(('.yaml', '.yml')):
-                normalized = normalize_openapi_yaml(text)
         except (OSError, ValueError, RuntimeError):
-            keys = None
-            state = "unavailable"
-            error = 'Document could not be read or safely decoded'
-        by_path[path] = replace(file, documented_env_keys=keys,
-                                document_input_state=state,
-                                after_source=text,
-                                document_json=normalized, document_error=error)
+            text = None
+            fields = {"documented_env_keys": None, "document_input_state": "unavailable",
+                      "document_json": None, "document_error": UNAVAILABLE_ERROR}
+        else:
+            fields = document_fields(path, text, schema_paths)
+        by_path[path] = replace(file, after_source=text, **fields)
     return list(by_path.values())
 
 
