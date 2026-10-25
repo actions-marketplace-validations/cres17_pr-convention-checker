@@ -12,18 +12,12 @@
 [![CI](https://github.com/cres17/pr-convention-checker/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cres17/pr-convention-checker/actions/workflows/ci.yml?query=branch%3Amain)
 [![License: MIT](https://img.shields.io/badge/License-MIT-8B5CF6)](LICENSE)
 
-![Python 3.10+](https://img.shields.io/badge/Python%203.10%2B-3776AB?style=flat&logoColor=white&logo=python)
-![Tree-sitter](https://img.shields.io/badge/Tree--sitter-2B3443?style=flat&logoColor=white)
-![GitHub REST API](https://img.shields.io/badge/GitHub%20REST%20API-181717?style=flat&logoColor=white&logo=github)
-![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?style=flat&logoColor=white&logo=githubactions)
-![MCP](https://img.shields.io/badge/MCP-000000?style=flat&logoColor=white&logo=modelcontextprotocol)
-![PySide6](https://img.shields.io/badge/PySide6-41CD52?style=flat&logoColor=black&logo=qt)
-![React 19](https://img.shields.io/badge/React%2019-61DAFB?style=flat&logoColor=black&logo=react)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logoColor=white&logo=typescript)
-![Claude API](https://img.shields.io/badge/Claude%20API-D97757?style=flat&logoColor=white&logo=claude)
-![pytest](https://img.shields.io/badge/pytest-0A9EDC?style=flat&logoColor=white&logo=pytest)
+
+<p align="center">Python · Tree-sitter · GitHub Actions · PySide6 / React</p>
 
 </div>
+
+[구조](#architecture) · [주요 흐름](#workflow) · [설계 선택](#핵심-설계-결정) · [실행](#빠른-시작)
 
 API 경로를 바꿨는데 명세에는 이전 주소가 남아 있거나, 새 환경변수를 쓰는데 `.env.example`에 키가 없는 경우를 PR 단계에서 잡습니다. 팀이 `.drift-gate.yml`에 "이 코드가 바뀌면 이 문서도 바뀌어야 한다"는 규칙을 적으면, 변경 내용을 분석해 필요한 문서의 누락을 판정하고 근거를 보고서로 남깁니다. 같은 엔진을 로컬 CLI, GitHub Actions, 데스크톱 앱, MCP 서버에서 그대로 씁니다.
 
@@ -43,11 +37,15 @@ API 경로를 바꿨는데 명세에는 이전 주소가 남아 있거나, 새 �
 
 데스크톱 앱(`drift-gate-desktop`)을 실행해 촬영했습니다. 아래 [빠른 시작](#빠른-시작)의 정책을 둔 예제 저장소에서 FastAPI 라우트만 추가하고 `docs/openapi.yaml`은 그대로 둔 상태로 검사한 결과입니다.
 
-## 전체 아키텍처
+<a id="architecture"></a>
+
+## 구조 한눈에 보기
 
 <p align="center">
   <img src="docs/assets/readme/architecture.svg" alt="Drift Gate 전체 아키텍처" width="100%">
 </p>
+
+입력 → 신호 추출 → 정책 평가 → 판정 → 보고서. LLM은 판정 이후에 설명을 더하는 선택 계층입니다.
 
 | 단계 | 하는 일 | 코드 |
 |------|--------|------|
@@ -68,9 +66,16 @@ desktop-ui/        데스크톱 화면 React 소스
 examples/          FastAPI · Django · Express · Next.js · Prisma · Actions 배포용 정책 예제
 ```
 
-## 기능 흐름
+<a id="workflow"></a>
 
-### 1. PR에서 실행되는 순서 (GitHub Action)
+## 주요 흐름
+
+![pr-convention-checker의 주요 처리 흐름](docs/assets/readme/workflow.svg)
+
+## 세부 동작
+
+<details>
+<summary><b>1. PR에서 실행되는 순서 (GitHub Action)</b></summary>
 
 ```mermaid
 sequenceDiagram
@@ -94,7 +99,10 @@ sequenceDiagram
   GA-->>PR: FAIL이면 job 실패
 ```
 
-### 2. 규칙 하나의 평가
+</details>
+
+<details>
+<summary><b>2. 규칙 하나의 평가</b></summary>
 
 ```mermaid
 flowchart TD
@@ -118,7 +126,10 @@ flowchart TD
   class UD und
 ```
 
-### 3. 판정
+</details>
+
+<details>
+<summary><b>3. 판정</b></summary>
 
 위반의 심각도와 게이트 설정(`gate.fail_on_blocker`, `gate.fail_on_major_count`, `gate.on_unverified`)으로 결과를 정합니다. 경로만 확인한 통과(`unverified`)는 이 검사 대상이 아니고, 요구 조건을 판단하지 못했거나 일부만 검증한 경우만 해당합니다.
 
@@ -142,7 +153,10 @@ flowchart TD
   class PASS p
 ```
 
-### 4. drift-ignore 예외 승인
+</details>
+
+<details>
+<summary><b>4. drift-ignore 예외 승인</b></summary>
 
 ```mermaid
 flowchart TD
@@ -160,6 +174,9 @@ flowchart TD
   class REJ bad
   class OK ok
 ```
+
+</details>
+
 
 ## 핵심 설계 결정
 
