@@ -1,10 +1,32 @@
-# Drift Gate
+<p align="center">
+  <img src="docs/assets/brand/drift-gate-icon.png" alt="Drift Gate 로고" width="120">
+</p>
+
+<h1 align="center">Drift Gate</h1>
+
+<div align="center">
+
+[![CI](https://github.com/cres17/pr-convention-checker/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cres17/pr-convention-checker/actions/workflows/ci.yml?query=branch%3Amain)
+[![License: MIT](https://img.shields.io/badge/License-MIT-8B5CF6)](LICENSE)
+
+![Python 3.10+](https://img.shields.io/badge/Python%203.10%2B-3776AB?style=flat&logoColor=white&logo=python)
+![Tree-sitter](https://img.shields.io/badge/Tree--sitter-2B3443?style=flat&logoColor=white)
+![GitHub REST API](https://img.shields.io/badge/GitHub%20REST%20API-181717?style=flat&logoColor=white&logo=github)
+![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?style=flat&logoColor=white&logo=githubactions)
+![MCP](https://img.shields.io/badge/MCP-000000?style=flat&logoColor=white&logo=modelcontextprotocol)
+![PySide6](https://img.shields.io/badge/PySide6-41CD52?style=flat&logoColor=black&logo=qt)
+![React 19](https://img.shields.io/badge/React%2019-61DAFB?style=flat&logoColor=black&logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logoColor=white&logo=typescript)
+![Claude API](https://img.shields.io/badge/Claude%20API-D97757?style=flat&logoColor=white&logo=claude)
+![pytest](https://img.shields.io/badge/pytest-0A9EDC?style=flat&logoColor=white&logo=pytest)
+
+</div>
 
 코드 변경에 필요한 문서 수정이 빠졌는지 검사합니다. API 경로를 바꿨는데 명세에 이전 주소가 남아 있거나, 환경변수를 추가했는데 `.env.example`에는 없는 경우를 PR에서 확인하기 위해 만들었습니다.
 
 팀의 규칙은 `.drift-gate.yml`에 작성합니다. 같은 엔진을 로컬 CLI, GitHub Action, 데스크톱 앱과 MCP 서버에서 사용할 수 있습니다.
 
-[화면](#화면) · [검사 과정](#검사-과정) · [판정](#판정) · [시작하기](#시작하기) · [github action](#github-action) · [개발](#개발)
+[화면](#화면) · [검사 과정](#검사-과정) · [판정](#판정) · [시작하기](#시작하기) · [GitHub Action](#github-action) · [개발](#개발)
 
 ## 화면
 
@@ -26,7 +48,7 @@ FastAPI 라우트를 추가하고 `docs/openapi.yaml`은 수정하지 않은 예
 | 환경변수 | 새 키의 누락과 삭제된 키의 잔존 여부 |
 | DB·인프라·CI·인증 | 정책에서 지정한 문서가 함께 수정되었는지 |
 
-모든 검사가 문서의 의미까지 검증하는 것은 아닙니다. 경로의 동반 변경만 확인한 통과에는 `unverified`를 표시합니다. 파싱이 실패하거나 diff에 문맥이 부족해 휴리스틱을 사용한 경우도 보고서에 남깁니다.
+문서 경로의 동반 변경만 확인한 경우에는 `unverified`를 표시합니다. 파싱이 실패하거나 diff에 문맥이 부족해 휴리스틱을 사용한 경우도 보고서에 남깁니다.
 
 ![정책 평가 과정](docs/assets/readme/workflow.svg)
 
