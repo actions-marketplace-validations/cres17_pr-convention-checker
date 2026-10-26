@@ -6,7 +6,7 @@
 - 지속 분석 캐시는 `DRIFT_GATE_CACHE_KEY`가 있으면 HMAC으로 entry를 인증한다(아래 `지속 분석 캐시`). 키가 없으면 기존 동작과 같다.
 - holdout 사례의 `documented_env_keys`가 같은 파일 `after_source`에서 다시 계산한 값과 다르면 사례를 거부한다.
 - 원본 입력 타입 `ChangedFileSource`(path·status·previous_path·patch·before_source·after_source)를 어댑터가 `ChangedFile.from_source`로 넘긴다. 이름은 `input_manifest.SourceArtifact`와 겹치지 않게 정했다. `ChangedFile`의 필드 집합·순서·직렬화(`asdict`)는 바꾸지 않았다.
-- `ChangedFile.from_dict`는 원본 필드만 받는다. 파생 필드나 모르는 필드가 있으면 `ValueError`로 거부한다. 기록된 파생 값을 가진 고정 입력은 `from_legacy_fixture`로 읽는다. 허용 필드는 `semantic_signals`·`semantic_evidence`·`documented_env_keys`·`document_input_state`·`env_key_usage`·`removed_env_key_candidates`이다.
+- `ChangedFile.from_dict`는 원본 필드만 받는다. 파생 필드나 모르는 필드가 있으면 `ValueError`로 거부한다. 기록된 파생 값을 가진 고정 입력은 `from_legacy_fixture`로 읽는다. 허용 필드는 `semantic_signals`·`semantic_evidence`·`documented_env_keys`·`document_input_state`이다. 사용 필드(`env_key_usage`·`removed_env_key_candidates`)는 어떤 고정 입력도 기록하지 않아서 허용 목록에서 뺐다.
 - 파생 필드를 키워드로 채울 수 있는 모듈은 `analyzer`·`express_routes`·`docs/content`·`removed_key_usage`·`evaluator`로 제한하며, AST 테스트가 이를 검사한다.
 - holdout은 문서 경로의 `documented_env_keys`·`document_input_state`·`document_json`·`document_error`를 같은 파일 `after_source`에서 `attach_env_documents`와 같은 함수로 다시 계산해 비교한다. 본문이 없는 문서는 내부 일관성만 본다. missing은 키 `[]`, unavailable은 키 `null`이며 실제 파일 상태는 holdout이 확인하지 않는다. 엔진이 채우는 분석·경로 필드와 `env_key_usage`·`removed_env_key_candidates`는 미설정이어야 한다. 홀드아웃 실행 경로(`inspect`)에는 사용 단계가 없기 때문이다. 문서 경로가 아닌 파일은 문서 필드를 모두 미설정으로 둔다.
 - HEAD의 검증은 제품이 만든 missing 문서(키 `[]`, 본문 없음)를 거부했다. 현재 검증은 `attach_env_documents`의 출력을 받아들이며, 이를 테스트로 고정했다.

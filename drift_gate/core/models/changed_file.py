@@ -15,9 +15,9 @@ FACT_FIELDS = {
 }
 _ALL_FACTS = frozenset(name for group in FACT_FIELDS.values() for name in group)
 # Derived fields that frozen fixtures may record as input; from_dict rejects all others.
+# Usage fields are left out: no frozen input records them, and holdout never computes them.
 LEGACY_FACT_FIELDS = (
-    "semantic_signals", "semantic_evidence", "documented_env_keys",
-    "document_input_state", "env_key_usage", "removed_env_key_candidates",
+    "semantic_signals", "semantic_evidence", "documented_env_keys", "document_input_state",
 )
 
 

@@ -84,9 +84,10 @@ def test_legacy_fixture_keeps_recorded_facts():
     assert list(dataclasses.asdict(changed).keys()) == SERIALIZED_ORDER
 
 
-def test_legacy_fixture_rejects_facts_outside_its_allowlist():
+@pytest.mark.parametrize("key", ["analysis_method", "env_key_usage", "removed_env_key_candidates"])
+def test_legacy_fixture_rejects_facts_outside_its_allowlist(key):
     with pytest.raises(ValueError, match="unknown changed-file fields"):
-        ChangedFile.from_legacy_fixture({"path": "a.py", "status": "modified", "analysis_method": "unavailable"})
+        ChangedFile.from_legacy_fixture({"path": "a.py", "status": "modified", key: None})
 
 
 def test_changed_file_source_is_frozen():
