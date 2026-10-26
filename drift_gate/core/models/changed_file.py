@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 
 from .changed_file_source import ChangedFileSource
 
@@ -95,6 +95,18 @@ class ChangedFile:
         if unknown:
             raise ValueError(f"unknown changed-file fields: {sorted(unknown)}")
         return cls.from_source(_source_of(d))
+
+    @classmethod
+    def from_recorded(cls, d: dict) -> "ChangedFile":
+        """Every field of a recorded observation: a sealed snapshot or a holdout case. Unknown names are rejected."""
+        unknown = set(d) - {item.name for item in fields(cls)}
+        if unknown:
+            raise ValueError(f"unknown changed-file fields: {sorted(unknown)}")
+        values = dict(d)
+        for key in ("before_routes", "after_routes"):
+            if values.get(key) is not None:
+                values[key] = [tuple(route) for route in values[key]]
+        return cls(**values)
 
     @classmethod
     def from_legacy_fixture(cls, d: dict) -> "ChangedFile":

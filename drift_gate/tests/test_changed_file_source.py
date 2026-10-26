@@ -95,3 +95,19 @@ def test_changed_file_source_is_frozen():
 
     with pytest.raises(dataclasses.FrozenInstanceError):
         source.path = "b.py"
+
+
+def test_from_recorded_keeps_every_field_and_restores_route_tuples():
+    changed = ChangedFile.from_recorded({
+        "path": "src/api.py", "status": "modified", "before_routes": [["GET", "/a"]], "after_routes": None,
+        "semantic_signals": ["route-contract-change"], "analysis_method": "unavailable",
+    })
+
+    assert changed.before_routes == [("GET", "/a")]
+    assert changed.after_routes is None
+    assert changed.analysis_method == "unavailable"
+
+
+def test_from_recorded_rejects_unknown_fields():
+    with pytest.raises(ValueError, match="unknown changed-file fields"):
+        ChangedFile.from_recorded({"path": "a.py", "status": "added", "note": "x"})
