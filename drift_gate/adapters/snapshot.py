@@ -171,12 +171,7 @@ class InspectionSnapshot:
         data = json.loads(self.payload)
         policy = Policy.from_dict(data['policy'])
         policy.load_warnings = data['policy']['load_warnings']
-        files = []
-        for file in data['files']:
-            for key in ('before_routes', 'after_routes'):
-                if file[key] is not None:
-                    file[key] = [tuple(route) for route in file[key]]
-            files.append(ChangedFile(**file))
+        files = [ChangedFile.from_recorded(file) for file in data['files']]
         return {
             'changed_files': files,
             'policy': policy,

@@ -211,18 +211,11 @@ def _units(case, result):
 
 def _changed_file(data):
     """Full observation including sources (the legacy from_dict drops raw sources)."""
-    from dataclasses import fields
-
     from drift_gate.core.models.changed_file import ChangedFile
-    names = {item.name for item in fields(ChangedFile)}
-    unknown = set(data) - names
-    if unknown:
-        raise HoldoutError(f'unknown changed-file fields {sorted(unknown)}')
-    values = dict(data)
-    for key in ('before_routes', 'after_routes'):
-        if values.get(key) is not None:
-            values[key] = [tuple(route) for route in values[key]]
-    return ChangedFile(**values)
+    try:
+        return ChangedFile.from_recorded(data)
+    except ValueError as exc:
+        raise HoldoutError(str(exc)) from exc
 
 
 def run_frozen(frozen, frozen_sha256):
