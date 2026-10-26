@@ -208,6 +208,17 @@ def test_case_without_the_document_a_rule_verifies_is_rejected_before_freezing()
     h._validate_cases([unchanged])
 
 
+def test_auto_content_documents_are_required_like_the_other_document_kinds():
+    # The product reads auto-content documents too, so an 'auto' group that the case omits must be rejected.
+    item = deepcopy(case('m2', 'fam-m', doc='GET /new\n', expected_decision='satisfied', gate='pass'))
+    item['policy']['rules'][0]['require']['groups'][0]['content'] = 'auto'
+    h._validate_cases([item])
+    missing = deepcopy(item)
+    missing['changed_files'] = [f for f in missing['changed_files'] if f['path'] != 'docs/api.md']
+    with pytest.raises(h.HoldoutError, match=r"docs/api\.md"):
+        h._validate_cases([missing])
+
+
 ENV_POLICY = {'rules': [{'id': 'env', 'when': {'any_changed': ['config.py']},
                          'require': {'groups': [{'name': 'sample', 'all_changed': ['.env.example'],
                                                  'content': 'env-keys'}]},

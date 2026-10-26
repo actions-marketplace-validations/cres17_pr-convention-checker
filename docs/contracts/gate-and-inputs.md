@@ -8,6 +8,7 @@
 - 원본 입력 타입 `ChangedFileSource`(path·status·previous_path·patch·before_source·after_source)를 어댑터가 `ChangedFile.from_source`로 넘긴다. 이름은 `input_manifest.SourceArtifact`와 겹치지 않게 정했다. `ChangedFile`의 필드 집합·순서·직렬화(`asdict`)는 바꾸지 않았다.
 - `ChangedFile.from_dict`는 원본 필드만 받는다. 파생 필드나 모르는 필드가 있으면 `ValueError`로 거부한다. 기록된 파생 값을 가진 고정 입력은 `from_legacy_fixture`로 읽는다. 허용 필드는 `semantic_signals`·`semantic_evidence`·`documented_env_keys`·`document_input_state`이다. 사용 필드(`env_key_usage`·`removed_env_key_candidates`)는 어떤 고정 입력도 기록하지 않아서 허용 목록에서 뺐다.
 - 파생 필드를 키워드로 채울 수 있는 모듈은 `analyzer`·`express_routes`·`docs/content`·`removed_key_usage`·`evaluator`로 제한하며, AST 테스트가 이를 검사한다.
+- 홀드아웃이 사례에 요구하는 문서는 제품의 문서 경로 규칙(`docs/content.py`의 `document_paths`)으로 정한다. 기본 내용 그룹 `auto`도 포함되므로, 정책이 명시적으로 내용을 검사하는 문서가 사례에서 빠지면 거부한다. 이전에는 `env-keys`·`api-routes`·`api-schema`만 요구했다.
 - 봉인된 스냅샷 복원과 홀드아웃 사례 읽기는 모두 `ChangedFile.from_recorded`를 쓴다. 이 함수는 19개 필드를 모두 받고, 알 수 없는 이름은 `ValueError`로 거부한다. dict를 `ChangedFile(**values)`로 펼치는 호출은 모델 모듈 밖에 없다(AST 테스트).
 - holdout은 문서 경로의 `documented_env_keys`·`document_input_state`·`document_json`·`document_error`를 같은 파일 `after_source`에서 `attach_env_documents`와 같은 함수로 다시 계산해 비교한다. 본문이 없는 문서는 내부 일관성만 본다. missing은 키 `[]`, unavailable은 키 `null`이며 실제 파일 상태는 holdout이 확인하지 않는다. 엔진이 채우는 분석·경로 필드와 `env_key_usage`·`removed_env_key_candidates`는 미설정이어야 한다. 홀드아웃 실행 경로(`inspect`)에는 사용 단계가 없기 때문이다. 문서 경로가 아닌 파일은 문서 필드를 모두 미설정으로 둔다.
 - HEAD의 검증은 제품이 만든 missing 문서(키 `[]`, 본문 없음)를 거부했다. 현재 검증은 `attach_env_documents`의 출력을 받아들이며, 이를 테스트로 고정했다.
