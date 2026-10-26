@@ -45,7 +45,7 @@ Wilson 구간은 비율별 계산 참고값이다. 같은 PR의 규칙들이 독
 - `case_id`, `repository`, `source_family`: family는 같은 출처(같은 저장소·같은 작성자 묶음)를 묶는 이름이다.
   분할은 family 단위이며 한 저장소가 두 split에 동시에 들어가면 거부된다.
 - `policy`: `.drift-gate.yml`과 같은 구조의 JSON 객체.
-- `changed_files`: `path`, `status`, `patch`, `before_source`, `after_source` 등 `ChangedFile` 필드. 알 수 없는 필드는 split·freeze에서 거부된다.
+- `changed_files`: `path`, `status`, `patch`, `before_source`, `after_source`와 문서 경로의 파생 문서 필드 등 `ChangedFile` 필드. 알 수 없는 필드와 엔진이 채우는 분석·경로 필드는 split·freeze에서 거부된다.
 - `expected`: `gate`(pass/warn/fail)와 규칙별 `rules.<rule_id>` = `{decision, support, known_violation?}`.
   decision은 satisfied·violated·undetermined·not-applicable·waived·error·skipped, support는 supported/unsupported다.
   rules는 정책 규칙의 일부만 선언할 수 있지만, 정책에 없는 ID는 거부한다. 생략한 규칙도 평가·검토 대상에서 빠지지 않는다.
@@ -57,7 +57,7 @@ Wilson 구간은 비율별 계산 참고값이다. 같은 PR의 규칙들이 독
 문서에 있는 PR도 위반으로, 설정 코드와 문서를 함께 바꾼 PR은 `document input unavailable`로 판단 보류되어 엔진이 아니라 수집 코드의
 누락을 재게 된다. 수집 도구는 `adapters/docs/content.py::attach_env_documents`를 그대로 불러 같은 규칙으로 붙이는 것을 권한다
 (`docs/assessment/pr-pilot-2026-10-21/collect.py`가 예다).
-`documented_env_keys`를 함께 넣으면 그 파일의 `after_source`에서 다시 계산한 키 목록과 같아야 한다. 다르면 `split`·`freeze`·`run`이
+문서 경로의 파생 필드(`documented_env_keys`·`document_input_state`·`document_json`·`document_error`)는 그 파일의 `after_source`에서 다시 계산한 값과 같아야 한다. 본문이 없는 missing(키 `[]`)·unavailable(키 `null`)은 내부 일관성만 확인한다. 다르면 `split`·`freeze`·`run`이
 사례를 거부한다. 엔진은 이 값을 다시 계산하지 않고 판정에 쓰기 때문이다.
 
 저장소의 고정 합성 사례(`adapters/eval`)와 개발 중 본 사례는 holdout이 아니다. 그런 출처는

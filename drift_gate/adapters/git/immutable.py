@@ -13,6 +13,7 @@ from drift_gate.adapters.git.client import GitInputError, _parse_name_status
 from drift_gate.adapters.policy_loader import require_check_policy
 from drift_gate.adapters.snapshot import capture_inspection
 from drift_gate.core.models.changed_file import ChangedFile
+from drift_gate.core.models.changed_file_source import ChangedFileSource
 from drift_gate.core.models.evaluation_context import EvaluationContext
 from drift_gate.core.models.git_input import (
     GitArtifact,
@@ -247,8 +248,8 @@ def _collect_git_snapshot(*, root, base, head, trusted_policy_ref, trusted_polic
             else:
                 before_text = reader.text(base_oid, old_path)
                 after_text = reader.text(head_oid, file.path)
-            files.append(ChangedFile(file.path, file.status, previous_path=file.previous_path,
-                patch=patch, before_source=before_text, after_source=after_text))
+            files.append(ChangedFile.from_source(ChangedFileSource(file.path, file.status, previous_path=file.previous_path,
+                patch=patch, before_source=before_text, after_source=after_text)))
     files = attach_env_documents(files, trusted, lambda path: reader.text(head_oid, path))
     from drift_gate.adapters.removed_key_usage import attach_immutable_usage
     files = attach_immutable_usage(files, trusted, reader, head_oid)

@@ -25,7 +25,7 @@ def main():
     suite = json.loads(suite_path.read_text())
     rows = []
     for case in suite["cases"]:
-        result = run([ChangedFile.from_dict(f) for f in case["changed_files"]], policy=Policy.from_dict(suite["policy"]))
+        result = run([ChangedFile.from_legacy_fixture(f) for f in case["changed_files"]], policy=Policy.from_dict(suite["policy"]))
         rows.append({"id": case["id"], "expected": case["expected"], "actual": result.result,
                      "passed": result.result == case["expected"], "report": result.to_dict()})
     data = {"revision": args.revision, "python": platform.python_version(), "suite": suite["version"],
