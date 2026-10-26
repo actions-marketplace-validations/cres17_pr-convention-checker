@@ -141,12 +141,13 @@ def _check_derived_fields(case_id, policy, changed_files):
 
 
 def _missing_required_documents(policy, changed_files):
-    """Documents whose content a rule verifies must be in the case: holdout run reads no repository."""
+    """Documents whose content a rule verifies must be in the case: holdout run reads no repository.
+
+    Uses the product's own document-path rule, so every content kind the product reads is required here too.
+    """
+    from drift_gate.adapters.docs.content import document_paths
     carried = {data.get('path') for data in changed_files if isinstance(data, dict)}
-    needed = {path for rule in policy.rules for group in rule.require.groups
-              if group.content in {'env-keys', 'api-routes', 'api-schema'}
-              for path in (group.any_changed or group.all_changed) if not any(c in path for c in '*?[]')}
-    return sorted(needed - carried)
+    return sorted(document_paths(policy, carried) - carried)
 
 
 def _validate_cases(cases):
